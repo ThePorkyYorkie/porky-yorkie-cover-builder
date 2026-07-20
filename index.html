@@ -242,6 +242,7 @@
         </div>
 
         <button id="saveButton" class="primary">Save Cover Photo</button>
+        <button id="centerButton" class="secondary">Center in Crop Area</button>
         <button id="resetButton" class="secondary">Reset Photo Position</button>
         <button id="resetCropButton" class="secondary">Reset Crop Frame</button>
 
@@ -264,6 +265,7 @@
     const itemNameInput = document.getElementById('itemName');
     const taggedSizeInput = document.getElementById('taggedSize');
     const saveButton = document.getElementById('saveButton');
+    const centerButton = document.getElementById('centerButton');
     const resetButton = document.getElementById('resetButton');
     const resetCropButton = document.getElementById('resetCropButton');
     const status = document.getElementById('status');
@@ -474,6 +476,19 @@
       cropFrame.style.top = `${crop.y * scaleY}px`;
       cropFrame.style.width = `${crop.w * scaleX}px`;
       cropFrame.style.height = `${crop.h * scaleY}px`;
+    }
+
+    function centerPhotoInCrop() {
+      if (!productImage) {
+        status.textContent = 'Choose a clothing photo first.';
+        return;
+      }
+
+      // Recenter only. Keep the current zoom level unchanged.
+      imageState.x = crop.x + crop.w / 2;
+      imageState.y = crop.y + crop.h / 2;
+      draw();
+      status.textContent = 'Photo centered in crop area.';
     }
 
     function resetPhotoPosition() {
@@ -708,6 +723,7 @@
 
     itemNameInput.addEventListener('input', draw);
     taggedSizeInput.addEventListener('input', draw);
+    centerButton.addEventListener('click', centerPhotoInCrop);
     resetButton.addEventListener('click', resetPhotoPosition);
     resetCropButton.addEventListener('click', resetCropFrame);
 
