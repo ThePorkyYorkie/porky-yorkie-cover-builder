@@ -1,0 +1,782 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#071b43" />
+  <title>Porky Yorkie Cover Builder</title>
+  <style>
+    :root {
+      --navy: #071b43;
+      --ink: #101828;
+      --line: #d7dce5;
+      --panel: #f6f7f9;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--ink);
+      background: #eef1f5;
+    }
+
+    .app {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      padding: 18px;
+    }
+
+    h1 {
+      margin: 0 0 14px;
+      font-size: clamp(22px, 3vw, 34px);
+      color: var(--navy);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .canvas-card,
+    .controls {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 8px 28px rgba(16, 24, 40, .10);
+    }
+
+    .canvas-card { padding: 12px; }
+
+    .canvas-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1;
+      background: white;
+      border-radius: 10px;
+      overflow: hidden;
+      touch-action: none;
+      cursor: grab;
+      user-select: none;
+    }
+
+    .canvas-wrap.dragging { cursor: grabbing; }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: white;
+    }
+
+    /* Editing-only crop guide. It is HTML, not part of the canvas,
+       so it can never appear in a saved cover photo. */
+    .crop-frame {
+      position: absolute;
+      border: 2px dashed rgba(7, 27, 67, .72);
+      border-radius: 7px;
+      pointer-events: none;
+      box-shadow: 0 0 0 9999px rgba(7, 27, 67, .035);
+      z-index: 5;
+    }
+
+    .crop-label {
+      position: absolute;
+      top: 7px;
+      left: 9px;
+      padding: 4px 7px;
+      border-radius: 5px;
+      color: white;
+      background: rgba(7, 27, 67, .82);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .04em;
+    }
+
+    .crop-handle {
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      border: 3px solid white;
+      border-radius: 50%;
+      background: var(--navy);
+      box-shadow: 0 2px 7px rgba(0,0,0,.25);
+      pointer-events: auto;
+      touch-action: none;
+    }
+
+    .crop-handle.nw { left: -12px; top: -12px; cursor: nwse-resize; }
+    .crop-handle.ne { right: -12px; top: -12px; cursor: nesw-resize; }
+    .crop-handle.sw { left: -12px; bottom: -12px; cursor: nesw-resize; }
+    .crop-handle.se { right: -12px; bottom: -12px; cursor: nwse-resize; }
+
+    .hint {
+      padding: 10px 4px 0;
+      font-size: 13px;
+      color: #667085;
+      text-align: center;
+      line-height: 1.45;
+    }
+
+    .controls { padding: 16px; }
+
+    .control { margin-bottom: 16px; }
+
+    label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 7px;
+      color: var(--navy);
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      font-size: 16px;
+    }
+
+    #photoInput {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    button,
+    .photo-button {
+      width: 100%;
+      border: 0;
+      border-radius: 11px;
+      padding: 13px 14px;
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .photo-button {
+      display: block;
+      background: var(--navy);
+      color: white;
+    }
+
+    .primary {
+      background: var(--navy);
+      color: white;
+      margin-top: 4px;
+    }
+
+    .secondary {
+      background: #e8edf5;
+      color: var(--navy);
+      margin-top: 10px;
+    }
+
+    .status {
+      min-height: 22px;
+      margin-top: 10px;
+      font-size: 13px;
+      color: #475467;
+      text-align: center;
+    }
+
+    .small {
+      font-size: 13px;
+      line-height: 1.45;
+      color: #667085;
+      margin: 0;
+    }
+
+    @media (max-width: 850px) {
+      .layout { grid-template-columns: 1fr; }
+      .controls { order: -1; }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app">
+    <h1>Porky Yorkie Cover Builder</h1>
+
+    <div class="layout">
+      <section class="canvas-card">
+        <div id="canvasWrap" class="canvas-wrap" aria-label="Cover preview">
+          <canvas id="coverCanvas" width="1600" height="1600"></canvas>
+
+          <div id="cropFrame" class="crop-frame" aria-label="Adjustable crop frame">
+            <div class="crop-label">EDITING CROP AREA</div>
+            <div class="crop-handle nw" data-handle="nw"></div>
+            <div class="crop-handle ne" data-handle="ne"></div>
+            <div class="crop-handle sw" data-handle="sw"></div>
+            <div class="crop-handle se" data-handle="se"></div>
+          </div>
+        </div>
+
+        <div class="hint">
+          Drag the clothing photo to position it. Scroll or pinch to zoom.
+          Drag a round corner handle to resize the crop area. The dashed frame is never saved.
+        </div>
+      </section>
+
+      <aside class="controls">
+        <div class="control">
+          <label>Clothing Photo</label>
+          <label for="photoInput" class="photo-button">Choose Photo</label>
+          <input id="photoInput" type="file" accept="image/*" />
+        </div>
+
+        <div class="control">
+          <label for="itemName">Item Name</label>
+          <input id="itemName" type="text" value="Vintage Harley-Davidson Eagle Tee" autocomplete="off" />
+        </div>
+
+        <div class="control">
+          <label for="taggedSize">Tagged Size</label>
+          <input id="taggedSize" type="text" value="XL" autocomplete="off" />
+        </div>
+
+        <button id="saveButton" class="primary">Save Cover Photo</button>
+        <button id="resetButton" class="secondary">Reset Photo Position</button>
+        <button id="resetCropButton" class="secondary">Reset Crop Frame</button>
+
+        <div id="status" class="status"></div>
+        <p class="small">
+          On iPhone or iPad, Choose Photo should open the image picker offered by Safari.
+          On a Mac, the browser still controls the Apple file window. The Save button will use
+          the Share Sheet where supported and download the PNG otherwise.
+        </p>
+      </aside>
+    </div>
+  </main>
+
+  <script>
+    const canvas = document.getElementById('coverCanvas');
+    const ctx = canvas.getContext('2d');
+    const wrap = document.getElementById('canvasWrap');
+    const cropFrame = document.getElementById('cropFrame');
+    const photoInput = document.getElementById('photoInput');
+    const itemNameInput = document.getElementById('itemName');
+    const taggedSizeInput = document.getElementById('taggedSize');
+    const saveButton = document.getElementById('saveButton');
+    const resetButton = document.getElementById('resetButton');
+    const resetCropButton = document.getElementById('resetCropButton');
+    const status = document.getElementById('status');
+
+    const W = canvas.width;
+    const H = canvas.height;
+    const NAVY = '#071b43';
+
+    const DEFAULT_CROP = { x: 34, y: 316, w: 1532, h: 1250 };
+    const MIN_CROP_SIZE = 360;
+
+    let crop = loadSavedCrop();
+    let cropResize = null;
+
+    const logo = new Image();
+    logo.src = 'logo.png';
+    logo.onload = draw;
+
+    let productImage = null;
+    let imageState = {
+      x: W / 2,
+      y: 940,
+      scale: 1,
+      fitScale: 1
+    };
+
+    let isDragging = false;
+    let lastPointer = null;
+    let activePointers = new Map();
+    let pinchStartDistance = 0;
+    let pinchStartScale = 1;
+
+    function loadSavedCrop() {
+      try {
+        const saved = JSON.parse(localStorage.getItem('pyCropFrame'));
+        if (
+          saved &&
+          Number.isFinite(saved.x) &&
+          Number.isFinite(saved.y) &&
+          Number.isFinite(saved.w) &&
+          Number.isFinite(saved.h)
+        ) {
+          return saved;
+        }
+      } catch (_) {}
+      return { ...DEFAULT_CROP };
+    }
+
+    function saveCrop() {
+      localStorage.setItem('pyCropFrame', JSON.stringify(crop));
+    }
+
+    function roundedRect(x, y, w, h, r, fill, stroke, lineWidth = 1) {
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, r);
+      if (fill) {
+        ctx.fillStyle = fill;
+        ctx.fill();
+      }
+      if (stroke) {
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = lineWidth;
+        ctx.stroke();
+      }
+    }
+
+    function fitText(text, maxWidth, fontSize, fontFamily = 'Arial', weight = '700') {
+      let size = fontSize;
+      while (size > 20) {
+        ctx.font = `${weight} ${size}px ${fontFamily}`;
+        if (ctx.measureText(text).width <= maxWidth) return size;
+        size -= 2;
+      }
+      return size;
+    }
+
+    function drawHeader() {
+      const logoX = 24;
+      const logoY = 20;
+      const logoW = 330;
+      const logoH = 330;
+
+      const headerX = 390;
+      const headerY = 28;
+      const headerW = 1170;
+      const headerH = 270;
+
+      roundedRect(headerX, headerY, headerW, headerH, 24, '#ffffff', NAVY, 5);
+
+      const blueW = 430;
+      const blueH = 138;
+      const blueX = headerX + headerW - blueW - 18;
+      const blueY = headerY + headerH - blueH - 18;
+
+      // Curated/Trusted badge styled to match reference
+      roundedRect(blueX, blueY, blueW, blueH, 18, '#ffffff', NAVY, 4);
+
+      roundedRect(
+        blueX + 8,
+        blueY + 8,
+        blueW - 16,
+        blueH - 16,
+        14,
+        NAVY,
+        '#ffffff',
+        3
+      );
+
+      const leftX = headerX + 30;
+      const rightPad = 26;
+
+      ctx.fillStyle = '#111827';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+
+      ctx.font = '800 40px Arial';
+      ctx.fillText('ITEM NAME:', leftX, headerY + 68);
+
+      const itemStartX = leftX + 245;
+      const itemMaxWidth = headerX + headerW - rightPad - itemStartX;
+      const itemName = itemNameInput.value.trim() || ' ';
+      const itemSize = fitText(itemName, itemMaxWidth, 44, 'Arial', '500');
+      ctx.font = `500 ${itemSize}px Arial`;
+      ctx.fillText(itemName, itemStartX, headerY + 68);
+
+      ctx.strokeStyle = NAVY;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(leftX, headerY + 112);
+      ctx.lineTo(headerX + headerW - rightPad, headerY + 112);
+      ctx.stroke();
+
+      ctx.font = '800 39px Arial';
+      ctx.fillText('TAGGED SIZE:', leftX, headerY + 197);
+
+      const sizeStartX = leftX + 280;
+      const sizeMaxWidth = blueX - 38 - sizeStartX;
+      const sizeText = taggedSizeInput.value.trim() || ' ';
+      const sizeFont = fitText(sizeText, sizeMaxWidth, 44, 'Arial', '500');
+      ctx.font = `500 ${sizeFont}px Arial`;
+      ctx.fillText(sizeText, sizeStartX, headerY + 197);
+
+      ctx.strokeStyle = NAVY;
+      ctx.beginPath();
+      ctx.moveTo(leftX, headerY + 226);
+      ctx.lineTo(blueX - 34, headerY + 226);
+      ctx.stroke();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.font = '800 31px Arial';
+      ctx.fillText('★  CURATED • TRUSTED  ★', blueX + blueW / 2, blueY + 48);
+
+      ctx.font = 'italic 31px Georgia';
+      ctx.fillText('Vintage & Modern', blueX + blueW / 2, blueY + 98);
+
+      if (logo.complete && logo.naturalWidth) {
+        ctx.drawImage(logo, logoX, logoY, logoW, logoH);
+      }
+
+      ctx.textAlign = 'left';
+    }
+
+    function drawProductArea() {
+      if (!productImage) {
+        ctx.save();
+        ctx.strokeStyle = '#cfd6e2';
+        ctx.lineWidth = 4;
+        ctx.setLineDash([18, 14]);
+        roundedRect(crop.x + 80, crop.y + 80, crop.w - 160, crop.h - 160, 28, null, '#cfd6e2', 4);
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#667085';
+        ctx.textAlign = 'center';
+        ctx.font = '700 45px Arial';
+        ctx.fillText('Choose a clothing photo to begin', W / 2, 900);
+        ctx.font = '32px Arial';
+        ctx.fillText('Then drag to position and scroll or pinch to zoom', W / 2, 960);
+        ctx.restore();
+        return;
+      }
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(crop.x, crop.y, crop.w, crop.h);
+      ctx.clip();
+
+      const drawW = productImage.naturalWidth * imageState.scale;
+      const drawH = productImage.naturalHeight * imageState.scale;
+
+      ctx.drawImage(
+        productImage,
+        imageState.x - drawW / 2,
+        imageState.y - drawH / 2,
+        drawW,
+        drawH
+      );
+
+      ctx.restore();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, W, H);
+
+      drawProductArea();
+      drawHeader();
+      updateCropFrame();
+    }
+
+    function updateCropFrame() {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = rect.width / W;
+      const scaleY = rect.height / H;
+
+      cropFrame.style.left = `${crop.x * scaleX}px`;
+      cropFrame.style.top = `${crop.y * scaleY}px`;
+      cropFrame.style.width = `${crop.w * scaleX}px`;
+      cropFrame.style.height = `${crop.h * scaleY}px`;
+    }
+
+    function resetPhotoPosition() {
+      if (!productImage) return;
+
+      // "Contain" the full source photo inside the crop area first.
+      // Users can then zoom substantially farther in to remove empty canvas
+      // around the garment.
+      const fit = Math.min(
+        crop.w / productImage.naturalWidth,
+        crop.h / productImage.naturalHeight
+      );
+
+      imageState.fitScale = fit;
+      imageState.scale = fit;
+      imageState.x = crop.x + crop.w / 2;
+      imageState.y = crop.y + crop.h / 2;
+
+      localStorage.setItem('pyLastScaleRatio', '1');
+      draw();
+    }
+
+    function resetCropFrame() {
+      crop = { ...DEFAULT_CROP };
+      saveCrop();
+      if (productImage) resetPhotoPosition();
+      draw();
+      status.textContent = 'Crop frame reset.';
+    }
+
+    function loadImage(file) {
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          productImage = img;
+          resetPhotoPosition();
+
+          const savedRatio = parseFloat(localStorage.getItem('pyLastScaleRatio'));
+          if (Number.isFinite(savedRatio) && savedRatio > 0.15 && savedRatio < 20) {
+            imageState.scale = imageState.fitScale * savedRatio;
+          }
+
+          draw();
+          status.textContent = 'Photo loaded.';
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function canvasPoint(event) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: (event.clientX - rect.left) * (W / rect.width),
+        y: (event.clientY - rect.top) * (H / rect.height)
+      };
+    }
+
+    function clampCrop(next) {
+      const minY = 300;
+      const margin = 20;
+
+      next.w = Math.max(MIN_CROP_SIZE, next.w);
+      next.h = Math.max(MIN_CROP_SIZE, next.h);
+      next.x = Math.max(margin, next.x);
+      next.y = Math.max(minY, next.y);
+
+      if (next.x + next.w > W - margin) next.w = W - margin - next.x;
+      if (next.y + next.h > H - margin) next.h = H - margin - next.y;
+
+      return next;
+    }
+
+    cropFrame.querySelectorAll('.crop-handle').forEach(handle => {
+      handle.addEventListener('pointerdown', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        handle.setPointerCapture(event.pointerId);
+
+        cropResize = {
+          handle: handle.dataset.handle,
+          startPoint: canvasPoint(event),
+          startCrop: { ...crop }
+        };
+      });
+
+      handle.addEventListener('pointermove', event => {
+        if (!cropResize) return;
+
+        const point = canvasPoint(event);
+        const dx = point.x - cropResize.startPoint.x;
+        const dy = point.y - cropResize.startPoint.y;
+        const s = cropResize.startCrop;
+        let next = { ...s };
+
+        if (cropResize.handle.includes('e')) next.w = s.w + dx;
+        if (cropResize.handle.includes('s')) next.h = s.h + dy;
+
+        if (cropResize.handle.includes('w')) {
+          next.x = s.x + dx;
+          next.w = s.w - dx;
+        }
+
+        if (cropResize.handle.includes('n')) {
+          next.y = s.y + dy;
+          next.h = s.h - dy;
+        }
+
+        crop = clampCrop(next);
+        saveCrop();
+
+        if (productImage) {
+          const previousFit = imageState.fitScale || 1;
+          const ratio = imageState.scale / previousFit;
+          imageState.fitScale = Math.min(
+            crop.w / productImage.naturalWidth,
+            crop.h / productImage.naturalHeight
+          );
+          imageState.scale = imageState.fitScale * ratio;
+        }
+
+        draw();
+      });
+
+      const finishResize = () => {
+        if (cropResize) {
+          cropResize = null;
+          status.textContent = 'Crop frame adjusted.';
+        }
+      };
+
+      handle.addEventListener('pointerup', finishResize);
+      handle.addEventListener('pointercancel', finishResize);
+    });
+
+    wrap.addEventListener('pointerdown', event => {
+      if (!productImage || event.target.classList.contains('crop-handle')) return;
+
+      wrap.setPointerCapture(event.pointerId);
+      activePointers.set(event.pointerId, canvasPoint(event));
+
+      if (activePointers.size === 1) {
+        isDragging = true;
+        wrap.classList.add('dragging');
+        lastPointer = canvasPoint(event);
+      } else if (activePointers.size === 2) {
+        const pts = [...activePointers.values()];
+        pinchStartDistance = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+        pinchStartScale = imageState.scale;
+        isDragging = false;
+      }
+    });
+
+    wrap.addEventListener('pointermove', event => {
+      if (!productImage || !activePointers.has(event.pointerId)) return;
+      activePointers.set(event.pointerId, canvasPoint(event));
+
+      if (activePointers.size === 2) {
+        const pts = [...activePointers.values()];
+        const distance = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+
+        if (pinchStartDistance > 0) {
+          const next = pinchStartScale * (distance / pinchStartDistance);
+          imageState.scale = Math.max(
+            imageState.fitScale * 0.15,
+            Math.min(imageState.fitScale * 20, next)
+          );
+          localStorage.setItem(
+            'pyLastScaleRatio',
+            String(imageState.scale / imageState.fitScale)
+          );
+          draw();
+        }
+      } else if (isDragging && activePointers.size === 1) {
+        const point = canvasPoint(event);
+        imageState.x += point.x - lastPointer.x;
+        imageState.y += point.y - lastPointer.y;
+        lastPointer = point;
+        draw();
+      }
+    });
+
+    function endPointer(event) {
+      activePointers.delete(event.pointerId);
+
+      if (activePointers.size === 0) {
+        isDragging = false;
+        lastPointer = null;
+        wrap.classList.remove('dragging');
+      } else if (activePointers.size === 1) {
+        lastPointer = [...activePointers.values()][0];
+        isDragging = true;
+        wrap.classList.add('dragging');
+      }
+    }
+
+    wrap.addEventListener('pointerup', endPointer);
+    wrap.addEventListener('pointercancel', endPointer);
+
+    wrap.addEventListener('wheel', event => {
+      if (!productImage) return;
+      event.preventDefault();
+
+      const point = canvasPoint(event);
+      const oldScale = imageState.scale;
+      const factor = Math.exp(-event.deltaY * 0.0015);
+      const newScale = Math.max(
+        imageState.fitScale * 0.15,
+        Math.min(imageState.fitScale * 20, oldScale * factor)
+      );
+
+      const ratio = newScale / oldScale;
+      imageState.x = point.x - (point.x - imageState.x) * ratio;
+      imageState.y = point.y - (point.y - imageState.y) * ratio;
+      imageState.scale = newScale;
+
+      localStorage.setItem(
+        'pyLastScaleRatio',
+        String(imageState.scale / imageState.fitScale)
+      );
+
+      draw();
+    }, { passive: false });
+
+    photoInput.addEventListener('change', event => {
+      loadImage(event.target.files[0]);
+      event.target.value = '';
+    });
+
+    itemNameInput.addEventListener('input', draw);
+    taggedSizeInput.addEventListener('input', draw);
+    resetButton.addEventListener('click', resetPhotoPosition);
+    resetCropButton.addEventListener('click', resetCropFrame);
+
+    window.addEventListener('resize', updateCropFrame);
+
+    async function makeBlob() {
+      // The crop guide is a separate HTML overlay, so it is automatically
+      // excluded from the exported PNG.
+      draw();
+      return await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 1));
+    }
+
+    saveButton.addEventListener('click', async () => {
+      status.textContent = 'Preparing image…';
+
+      const blob = await makeBlob();
+      if (!blob) {
+        status.textContent = 'Could not create the image.';
+        return;
+      }
+
+      const safeName = (itemNameInput.value || 'porky-yorkie-cover')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
+
+      const file = new File(
+        [blob],
+        `${safeName || 'porky-yorkie-cover'}.png`,
+        { type: 'image/png' }
+      );
+
+      try {
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'Porky Yorkie Cover Photo'
+          });
+          status.textContent = 'Share Sheet opened.';
+          return;
+        }
+      } catch (error) {
+        if (error && error.name === 'AbortError') {
+          status.textContent = 'Save canceled.';
+          return;
+        }
+      }
+
+      const link = document.createElement('a');
+      link.download = file.name;
+      link.href = URL.createObjectURL(blob);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      status.textContent = 'Image downloaded.';
+    });
+
+    draw();
+  </script>
+</body>
+</html>
