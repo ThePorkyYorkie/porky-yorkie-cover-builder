@@ -355,16 +355,22 @@
 
       const blueW = 430;
       const blueH = 138;
-      const blueX = headerX + headerW - blueW;
-      const blueY = headerY + headerH - blueH;
+      const blueX = headerX + headerW - blueW - 18;
+      const blueY = headerY + headerH - blueH - 18;
 
-      ctx.save();
-      ctx.beginPath();
-      ctx.roundRect(blueX, blueY, blueW, blueH, [0, 0, 24, 0]);
-      ctx.clip();
-      ctx.fillStyle = NAVY;
-      ctx.fillRect(blueX, blueY, blueW, blueH);
-      ctx.restore();
+      // Curated/Trusted badge styled to match reference
+      roundedRect(blueX, blueY, blueW, blueH, 18, '#ffffff', NAVY, 4);
+
+      roundedRect(
+        blueX + 8,
+        blueY + 8,
+        blueW - 16,
+        blueH - 16,
+        14,
+        NAVY,
+        '#ffffff',
+        3
+      );
 
       const leftX = headerX + 30;
       const rightPad = 26;
