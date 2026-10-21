@@ -193,6 +193,11 @@
       margin: 0;
     }
 
+    .title-fit { margin-top:7px; padding:10px; border-radius:9px; background:#f1f5f9; font-size:13px; line-height:1.45; }
+    .title-fit meter { display:block; width:100%; height:15px; margin:5px 0; }
+    .title-fit[data-state="nearly-full"] { background:#fff4d5; }
+    .title-fit[data-state="too-long"] { background:#ffe6e6; color:#8b1e1e; }
+
     @media (max-width: 850px) {
       .layout { grid-template-columns: 1fr; }
       .controls { order: -1; }
@@ -233,7 +238,12 @@
 
         <div class="control">
           <label for="itemName">Item Name</label>
-          <input id="itemName" type="text" value="" autocomplete="off" />
+          <input id="itemName" type="text" value="" autocomplete="off" aria-describedby="titleFitCounter" />
+          <div id="titleFitCounter" class="title-fit" data-state="fits">
+            <div id="titleFitCount"></div>
+            <meter id="titleFitMeter" min="0" max="100" value="0" aria-label="Title space used"></meter>
+            <div id="titleFitMessage"></div>
+          </div>
         </div>
 
         <div class="control">
@@ -273,6 +283,8 @@
     const W = canvas.width;
     const H = canvas.height;
     const NAVY = '#071b43';
+    // Same 37px title font and drawing area for preview, counter and exported PNG.
+    const ITEM_TITLE = { x:553, right:1536, fontSize:37, font:'500 37px Arial' };
 
     const DEFAULT_CROP = { x: 34, y: 270, w: 1532, h: 1296 };
     const MIN_CROP_SIZE = 360;
@@ -281,8 +293,8 @@
     let cropResize = null;
 
     const logo = new Image();
-    logo.src = 'logo.png';
     logo.onload = draw;
+    logo.src = 'logo-official-white.png?v=official-white-1';
 
     let productImage = null;
     let imageState = {
@@ -342,6 +354,39 @@
       return size;
     }
 
+    function measureItemTitle(value) {
+      const text = value.trim();
+      ctx.save();
+      ctx.font = ITEM_TITLE.font;
+      const metrics = ctx.measureText(text);
+      const width = Math.max(metrics.width,
+        (metrics.actualBoundingBoxLeft || 0) + (metrics.actualBoundingBoxRight || 0));
+      ctx.restore();
+      const available = ITEM_TITLE.right - ITEM_TITLE.x;
+      const percent = available ? width / available * 100 : 0;
+      const characters = Array.from(text).length;
+      return {
+        characters: Array.from(value).length,
+        percent: Math.round(percent),
+        remaining: width > 0 ? Math.max(0, Math.floor((available - width) / (width / characters))) : null,
+        state: width > available ? 'too-long' : percent >= 85 ? 'nearly-full' : 'fits'
+      };
+    }
+
+    function updateTitleFit() {
+      const fit = measureItemTitle(itemNameInput.value);
+      const counter = document.getElementById('titleFitCounter');
+      counter.dataset.state = fit.state;
+      document.getElementById('titleFitCount').textContent =
+        fit.characters + ' characters · ' + fit.percent + '% of title space';
+      document.getElementById('titleFitMeter').value = Math.min(100, fit.percent);
+      document.getElementById('titleFitMessage').textContent =
+        fit.state === 'too-long' ? 'Too long at the standard font size. Shorten the title so all of it fits.' :
+        fit.remaining === null ? 'Add your item name to see how much room remains. Font size stays fixed.' :
+        (fit.state === 'nearly-full' ? 'Nearly full. ' : 'Fits. ') +
+        'About ' + fit.remaining + ' more similar-width characters fit. Font size stays fixed.';
+    }
+
     function drawHeader() {
       // Compact header so the clothing photo remains the main focus.
       const logoX = 30;
@@ -375,12 +420,17 @@
       ctx.font = '800 34px Arial';
       ctx.fillText('ITEM NAME:', leftX, headerY + 55);
 
-      const itemStartX = leftX + 210;
-      const itemMaxWidth = headerX + headerW - rightPad - itemStartX;
+      const itemStartX = ITEM_TITLE.x;
+      const itemMaxWidth = ITEM_TITLE.right - itemStartX;
       const itemName = itemNameInput.value.trim() || ' ';
-      const itemSize = fitText(itemName, itemMaxWidth, 37, 'Arial', '500');
-      ctx.font = `500 ${itemSize}px Arial`;
+      ctx.font = ITEM_TITLE.font;
+      // Confine overlong drafts to the title row; the counter asks the user to shorten them.
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(itemStartX, headerY + 15, itemMaxWidth, 80);
+      ctx.clip();
       ctx.fillText(itemName, itemStartX, headerY + 55);
+      ctx.restore();
 
       ctx.strokeStyle = NAVY;
       ctx.lineWidth = 3;
@@ -465,6 +515,7 @@
       drawProductArea();
       drawHeader();
       updateCropFrame();
+      updateTitleFit();
     }
 
     function updateCropFrame() {
