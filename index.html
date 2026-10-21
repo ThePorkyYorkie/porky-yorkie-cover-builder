@@ -255,6 +255,7 @@
         <button id="centerButton" class="secondary">Center in Crop Area</button>
         <button id="resetButton" class="secondary">Reset Photo Position</button>
         <button id="resetCropButton" class="secondary">Reset Crop Frame</button>
+        <button id="startNewItemButton" class="secondary">Start New Item</button>
 
         <div id="status" class="status"></div>
         <p class="small">
@@ -278,6 +279,7 @@
     const centerButton = document.getElementById('centerButton');
     const resetButton = document.getElementById('resetButton');
     const resetCropButton = document.getElementById('resetCropButton');
+    const startNewItemButton = document.getElementById('startNewItemButton');
     const status = document.getElementById('status');
 
     const W = canvas.width;
@@ -297,6 +299,7 @@
     logo.src = 'logo-official-white.png?v=official-white-1';
 
     let productImage = null;
+    let photoLoadVersion = 0;
     let imageState = {
       x: W / 2,
       y: 940,
@@ -588,13 +591,35 @@
       status.textContent = 'Crop frame reset.';
     }
 
+    function startNewItem() {
+      // Invalidate pending photo loads so a cleared photo cannot reappear.
+      photoLoadVersion++;
+      productImage = null;
+      photoInput.value = '';
+      itemNameInput.value = '';
+      taggedSizeInput.value = '';
+      imageState = { x: W / 2, y: 940, scale: 1, fitScale: 1 };
+      isDragging = false;
+      lastPointer = null;
+      activePointers.clear();
+      pinchStartDistance = 0;
+      pinchStartScale = 1;
+      cropResize = null;
+      wrap.classList.remove('dragging');
+      draw();
+      status.textContent = 'Ready for a new item. Choose Photo to begin.';
+    }
+
     function loadImage(file) {
       if (!file) return;
+      const loadVersion = ++photoLoadVersion;
 
       const reader = new FileReader();
       reader.onload = () => {
+        if (loadVersion !== photoLoadVersion) return;
         const img = new Image();
         img.onload = () => {
+          if (loadVersion !== photoLoadVersion) return;
           productImage = img;
           resetPhotoPosition();
 
@@ -795,6 +820,7 @@
     centerButton.addEventListener('click', centerPhotoInCrop);
     resetButton.addEventListener('click', resetPhotoPosition);
     resetCropButton.addEventListener('click', resetCropFrame);
+    startNewItemButton.addEventListener('click', startNewItem);
 
     window.addEventListener('resize', updateCropFrame);
 

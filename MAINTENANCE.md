@@ -10,3 +10,5 @@ logo-official-white.png is the approved sunglasses Yorkie badge adapted from the
 Preserve existing photo picker, crop frame, dragging/pinching, centering, scale, and square 1600x1600 PNG export. Crop and zoom preferences remain local browser settings. This update does not add synchronization or modify the separate measurement builder.
 
 Before future functional changes inspect current main and make a backup. Test title fit/overflow/different letter widths, full-size to auto-fit transition and restored full size, logo loading and the complete saved PNG.
+
+Start New Item (below Reset Crop Frame) clears the photo, photo input, Item Name and Tagged Size. It retains the user's crop frame and does not clear saved browser settings. It invalidates pending photo loads and clears drag/pinch state. Photo position and crop reset remain separate actions.
