@@ -195,7 +195,7 @@
 
     .title-fit { margin-top:7px; padding:10px; border-radius:9px; background:#f1f5f9; font-size:13px; line-height:1.45; }
     .title-fit meter { display:block; width:100%; height:15px; margin:5px 0; }
-    .title-fit[data-state="nearly-full"] { background:#fff4d5; }
+    .title-fit[data-state="nearly-full"], .title-fit[data-state="shrinking"] { background:#fff4d5; }
     .title-fit[data-state="too-long"] { background:#ffe6e6; color:#8b1e1e; }
 
     @media (max-width: 850px) {
@@ -283,7 +283,7 @@
     const W = canvas.width;
     const H = canvas.height;
     const NAVY = '#071b43';
-    // Same 37px title font and drawing area for preview, counter and exported PNG.
+    // Original 37px title size; shared auto-fit geometry for preview, counter and exported PNG.
     const ITEM_TITLE = { x:553, right:1536, fontSize:37, font:'500 37px Arial' };
 
     const DEFAULT_CROP = { x: 34, y: 270, w: 1532, h: 1296 };
@@ -356,20 +356,35 @@
 
     function measureItemTitle(value) {
       const text = value.trim();
-      ctx.save();
-      ctx.font = ITEM_TITLE.font;
-      const metrics = ctx.measureText(text);
-      const width = Math.max(metrics.width,
-        (metrics.actualBoundingBoxLeft || 0) + (metrics.actualBoundingBoxRight || 0));
-      ctx.restore();
       const available = ITEM_TITLE.right - ITEM_TITLE.x;
-      const percent = available ? width / available * 100 : 0;
       const characters = Array.from(text).length;
+      ctx.save();
+      const textWidth = size => {
+        ctx.font = `500 ${size}px Arial`;
+        const metrics = ctx.measureText(text);
+        return Math.max(metrics.width,
+          (metrics.actualBoundingBoxLeft || 0) + (metrics.actualBoundingBoxRight || 0));
+      };
+      const width = textWidth(ITEM_TITLE.fontSize);
+      let fontSize = width > available
+        ? Math.max(20, Math.floor(ITEM_TITLE.fontSize * available / width * 100) / 100)
+        : ITEM_TITLE.fontSize;
+      // Account for font rasterization rounding at the fitted size.
+      let fittedWidth = textWidth(fontSize);
+      while (fontSize > 20 && fittedWidth > available) {
+        fontSize = Math.max(20, Math.round((fontSize - 0.1) * 100) / 100);
+        fittedWidth = textWidth(fontSize);
+      }
+      ctx.restore();
+      const percent = available ? width / available * 100 : 0;
       return {
         characters: Array.from(value).length,
         percent: Math.round(percent),
         remaining: width > 0 ? Math.max(0, Math.floor((available - width) / (width / characters))) : null,
-        state: width > available ? 'too-long' : percent >= 85 ? 'nearly-full' : 'fits'
+        fontSize,
+        fontPercent: Math.round(fontSize / ITEM_TITLE.fontSize * 100),
+        state: fittedWidth > available ? 'too-long' : fontSize < ITEM_TITLE.fontSize ? 'shrinking' :
+          percent >= 85 ? 'nearly-full' : 'fits'
       };
     }
 
@@ -378,13 +393,15 @@
       const counter = document.getElementById('titleFitCounter');
       counter.dataset.state = fit.state;
       document.getElementById('titleFitCount').textContent =
-        fit.characters + ' characters · ' + fit.percent + '% of title space';
+        fit.characters + ' characters · ' + fit.percent + '% of full-size title space';
       document.getElementById('titleFitMeter').value = Math.min(100, fit.percent);
       document.getElementById('titleFitMessage').textContent =
-        fit.state === 'too-long' ? 'Too long at the standard font size. Shorten the title so all of it fits.' :
-        fit.remaining === null ? 'Add your item name to see how much room remains. Font size stays fixed.' :
-        (fit.state === 'nearly-full' ? 'Nearly full. ' : 'Fits. ') +
-        'About ' + fit.remaining + ' more similar-width characters fit. Font size stays fixed.';
+        fit.state === 'too-long' ? 'At the minimum font size. Shorten the title so all of it fits.' :
+        fit.state === 'shrinking' ? 'Auto-fit active: font is ' + fit.fontPercent +
+          '% of full size. Shorten the title to return to full size.' :
+        fit.remaining === null ? 'Add your item name to see how much room remains at full size.' :
+        (fit.state === 'nearly-full' ? 'Nearly full at the original font size. ' : 'Full-size font. ') +
+        'About ' + fit.remaining + ' more similar-width characters fit before the font starts shrinking.';
     }
 
     function drawHeader() {
@@ -423,8 +440,9 @@
       const itemStartX = ITEM_TITLE.x;
       const itemMaxWidth = ITEM_TITLE.right - itemStartX;
       const itemName = itemNameInput.value.trim() || ' ';
-      ctx.font = ITEM_TITLE.font;
-      // Confine overlong drafts to the title row; the counter asks the user to shorten them.
+      const titleFit = measureItemTitle(itemNameInput.value);
+      ctx.font = `500 ${titleFit.fontSize}px Arial`;
+      // Confine drafts that exceed the minimum font size to the title row.
       ctx.save();
       ctx.beginPath();
       ctx.rect(itemStartX, headerY + 15, itemMaxWidth, 80);
