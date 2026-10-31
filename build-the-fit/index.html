@@ -15,7 +15,7 @@
 <div class="rowbtn"><button class="secondary" id="resetPhoto">Reset photo position</button><button class="secondary" id="toggleLines">Show/Hide guides</button></div>
 </section>
 <section class="panel"><p class="title">2 · Editable words</p>
-<label>Heading under BUILD THE FIT</label><input id="subtitle" type="text" value="VINTAGE CARHARTT JACKET">
+<label>Garment description under Style Option</label><input id="subtitle" type="text" value="VINTAGE CARHARTT JACKET">
 <label>Small description beneath red line</label><input id="descriptor" type="text" value="WORKWEAR · VINTAGE BAND TEE">
 <label>Upper-right style option (fully editable)</label><input id="option" type="text" value="STYLE OPTION 01">
 <label>Bottom-left script item list (one per line)</label><textarea id="items">Vintage Carhartt Trucker Jacket&#10;Carhartt Double Knee Pants&#10;Corrosion of Conformity Band Tee&#10;Leather Red Wing Moc Toe Boots&#10;Leather Belt</textarea>
@@ -30,8 +30,8 @@
 const W=1248,H=1248,canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d');
 const $=id=>document.getElementById(id);
 const fields=['subtitle','descriptor','option','items'];
-const defaults={subtitle:{x:50,y:224},descriptor:{x:50,y:263},option:{x:823,y:91},items:{x:85,y:1010}};
-let places;try{places=Object.assign(structuredClone(defaults),JSON.parse(localStorage.getItem('pyFitPositions')||'{}'))}catch{places=JSON.parse(JSON.stringify(defaults))}
+const defaults={subtitle:{x:822,y:165},descriptor:{x:50,y:258},option:{x:823,y:91},items:{x:85,y:1010}};
+let places;try{places=Object.assign(structuredClone(defaults),JSON.parse(localStorage.getItem('pyFitPositionsV2')||'{}'))}catch{places=JSON.parse(JSON.stringify(defaults))}
 let photo=null,template=null,photoX=0,photoY=0,zoom=1,showLines=false;
 let photoWidth=1120;let activeTemplateLoad=0;
 function loadImg(data,callback){const i=new Image;i.onload=()=>callback(i);i.onerror=()=>{$('status').textContent='Could not load image. Try a JPEG or PNG.'};i.src=data}
@@ -44,7 +44,7 @@ function fitText(txt,x,y,maxWidth,size,style='bold 28px Georgia',color='#302a1d'
 function backdrop(){ctx.fillStyle='#EDE4D7';ctx.fillRect(0,0,W,H);if(template){ctx.drawImage(template,0,0,W,H)}else{
  ctx.fillStyle='#332c1b';ctx.font='900 106px Georgia,serif';ctx.fillText('BUILD',44,98);ctx.fillText('THE FIT',44,197);ctx.fillStyle='#b11f35';ctx.fillRect(49,235,387,3);
  ctx.fillStyle='#e7d5bf';ctx.fillRect(794,38,410,84);ctx.fillStyle='#b11f35';ctx.fillRect(794,118,410,3);ctx.fillRect(48,987,3,131);
- ctx.fillStyle='#372d20';ctx.font='bold 29px Georgia';ctx.textAlign='center';ctx.fillText('THE PORKY YORKIE',1090,1169);ctx.textAlign='left';
+ // No substitute text logo. Use the exact official logo from the uploaded template only.
  }}
 function drawPhoto(){if(!photo)return;
  const ratio=Math.min(photoWidth/photo.width,1000/photo.height)*zoom;
@@ -55,24 +55,25 @@ function drawPhoto(){if(!photo)return;
  ctx.drawImage(photo,cx-dw/2,cy-dh/2,dw,dh);ctx.restore();}
 function restoreTemplateArtwork(){
  if(!template)return;
- // Keep the actual original official logo and original top title above the photo.
- ctx.drawImage(template,0,0,1248,203,0,0,1248,203);
- // Cover template's PRINTED Style Option text using a nearby clean paper region.
- // Then the new title is rendered once in its own location.
- ctx.drawImage(template,810,149,395,73,800,39,402,75);
+ // Protect all top branding from being covered by dragged photographs.
+ ctx.drawImage(template,0,0,W,205,0,0,W,205);
+ // Remove the printed text from the option panel by using an unlettered portion
+ // of the same template paper, then draw its red underline back.
+ ctx.drawImage(template,810,145,395,65,797,40,405,78);
  ctx.fillStyle='#b11f35';ctx.fillRect(794,119,410,3);
- // Remove the old stationary red list line using neighboring cream paper.
- ctx.drawImage(template,56,990,15,130,45,982,14,141);
- // Restore the exact user-provided corner logo from its original template.
- ctx.drawImage(template,989,1027,237,207,989,1027,237,207);
+ // Erase the original fixed bottom-left red line from the blank artwork.
+ // Copy an adjacent narrow strip of the same paper surface.
+ ctx.drawImage(template,76,977,31,165,38,977,32,165);
+ // Protect the entire lower logo / footer area from dragged photo.
+ ctx.drawImage(template,920,914,328,334,920,914,328,334);
 }
 function draw(){ctx.clearRect(0,0,W,H);backdrop();drawPhoto();restoreTemplateArtwork();
  const s=places.subtitle,d=places.descriptor,o=places.option,it=places.items;
- fitText($('subtitle').value.toUpperCase(),s.x,s.y,650,Number($('subtitleSize').value),'bold 28px Georgia');
+ fitText($('subtitle').value.toUpperCase(),s.x,s.y,370,Math.min(29,Number($('subtitleSize').value)),'bold 28px Georgia');
  fitText($('descriptor').value.toUpperCase(),d.x,d.y,690,24,'bold 28px Georgia');
  fitText($('option').value.toUpperCase(),o.x,o.y,385,Number($('optionSize').value),'bold 28px Georgia');
  const lines=$('items').value.split('\n').slice(0,9);
- ctx.fillStyle='#b11f35';ctx.fillRect(Math.max(4,it.x-19),it.y-15,3,Math.min(255,Math.max(85,lines.length*(Number($('listSize').value)+7)-10)));
+ ctx.fillStyle='#b11f35';ctx.fillRect(Math.max(4,it.x-19),it.y-14,3,Math.min(255,Math.max(85,lines.length*(Number($('listSize').value)+7)-10)));
 
  lines.forEach((line,i)=>fitText(line,it.x,it.y+i*(Number($('listSize').value)+7),530,Number($('listSize').value),'italic 28px Georgia'));
  if(showLines){ctx.save();ctx.setLineDash([8,8]);ctx.strokeStyle='#b11f35';ctx.strokeRect(0,270,W,710);ctx.restore();}
@@ -80,8 +81,8 @@ function draw(){ctx.clearRect(0,0,W,H);backdrop();drawPhoto();restoreTemplateArt
 for(let id of ['zoom','posX','posY','photoWidth','subtitleSize','optionSize','listSize','opacity','subtitle','descriptor','option','items'])$(id).addEventListener('input',()=>{zoom=Number($('zoom').value)/100;photoX=Number($('posX').value);photoY=Number($('posY').value);photoWidth=Number($('photoWidth').value);draw()});
 $('resetPhoto').onclick=()=>{photoX=0;photoY=0;zoom=1;photoWidth=1120;$('zoom').value=100;$('posX').value=0;$('posY').value=0;$('photoWidth').value=1120;draw()};
 $('toggleLines').onclick=()=>{showLines=!showLines;draw()};
-const pos=$('positions');for(const name of fields){const box=document.createElement('div');box.className='controls';box.innerHTML='<div><label>'+({subtitle:'Heading',descriptor:'Description',option:'Style option',items:'Script list'}[name])+' · X</label><input type="range" min="0" max="1100" step="1" data-field="'+name+'" data-axis="x"></div><div><label>Y</label><input type="range" min="0" max="1248" step="1" data-field="'+name+'" data-axis="y"></div>';pos.appendChild(box);for(const a of box.querySelectorAll('input')){a.value=places[name][a.dataset.axis];a.addEventListener('input',()=>{places[name][a.dataset.axis]=+a.value;draw()})}}
-$('save').onclick=()=>{localStorage.setItem('pyFitPositions',JSON.stringify(places));$('status').textContent='Text layout saved.'};
+const pos=$('positions');for(const name of fields){const box=document.createElement('div');box.className='controls';box.innerHTML='<div><label>'+({subtitle:'Garment under style line',descriptor:'Left description',option:'Style option',items:'Script list + red line'}[name])+' · X</label><input type="range" min="0" max="1100" step="1" data-field="'+name+'" data-axis="x"></div><div><label>Y</label><input type="range" min="0" max="1248" step="1" data-field="'+name+'" data-axis="y"></div>';pos.appendChild(box);for(const a of box.querySelectorAll('input')){a.value=places[name][a.dataset.axis];a.addEventListener('input',()=>{places[name][a.dataset.axis]=+a.value;draw()})}}
+$('save').onclick=()=>{localStorage.setItem('pyFitPositionsV2',JSON.stringify(places));$('status').textContent='Text layout saved.'};
 $('resetText').onclick=()=>{places=JSON.parse(JSON.stringify(defaults));for(const a of pos.querySelectorAll('input'))a.value=places[a.dataset.field][a.dataset.axis];draw()};
 let lastPointer=null;canvas.addEventListener('pointerdown',e=>{lastPointer={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId)});canvas.addEventListener('pointermove',e=>{if(!lastPointer)return;const r=canvas.getBoundingClientRect();photoX+=(e.clientX-lastPointer.x)*W/r.width;photoY+=(e.clientY-lastPointer.y)*H/r.height;lastPointer={x:e.clientX,y:e.clientY};$('posX').value=Math.max(-650,Math.min(650,photoX));$('posY').value=Math.max(-650,Math.min(650,photoY));draw()});for(const ev of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(ev,()=>{lastPointer=null});
 $('export').onclick=()=>{const old=showLines;showLines=false;draw();const url=canvas.toDataURL('image/png');const link=document.createElement('a');link.href=url;link.download='porky-yorkie-build-the-fit.png';link.click();showLines=old;draw();$('status').textContent='PNG generated. On iPhone, if needed, open the image and choose Save to Photos.'};
