@@ -3,10 +3,12 @@
 <title>Porky Yorkie | Build the Fit</title>
 <style>
 :root{font-family:system-ui,-apple-system,sans-serif;color:#182238;background:#f5f0e8}*{box-sizing:border-box}body{margin:0}header{padding:17px 17px 9px;background:#13233a;color:white}header h1{margin:0;font-size:21px;letter-spacing:.02em}header small{opacity:.85}main{max-width:760px;margin:auto;padding:12px 12px 45px}.panel{background:white;border:1px solid #ded7c9;border-radius:15px;padding:14px;margin:12px 0;box-shadow:0 2px 6px #34240f0a}.title{font-weight:800;font-size:16px;margin:0 0 12px}label{display:block;font-weight:650;font-size:13px;margin:12px 0 5px}input[type=text],textarea,input[type=file],select{width:100%;font:inherit;padding:11px;border:1px solid #b9b4ad;border-radius:9px;background:white}textarea{min-height:96px;resize:vertical}.controls{display:grid;grid-template-columns:1fr 1fr;gap:8px}.controls>div{min-width:0}.wide{grid-column:span 2}button,.download{width:100%;border:0;border-radius:10px;padding:14px;background:#0b2448;color:white;font-size:16px;font-weight:750;cursor:pointer}.secondary{background:#5a5a5a}.danger{background:#8c2223}input[type=range]{width:100%;accent-color:#91282b}#canvas{display:block;width:100%;height:auto;border:1px solid #d8cfc3;border-radius:5px;touch-action:none;background:#ede4d7}.help{font-size:13px;color:#68625d;line-height:1.4}.status{font-size:13px;color:#36553a;min-height:17px}.rowbtn{display:grid;grid-template-columns:1fr 1fr;gap:8px}.note{background:#f6f1e7;padding:9px;border-radius:9px}
-</style></head><body>
+.quick-adjust{margin:10px 0 12px;padding:11px;border:1px solid #e2d9cb;background:#f8f4ec;border-radius:12px}.quick-adjust .title{margin-bottom:6px}.quick-adjust .rowbtn{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin-top:8px}.quick-adjust .rowbtn button{padding:11px 3px;font-size:13px}.quick-adjust label{margin:5px 0}.quick-adjust .help{margin:5px 0}.quick-adjust details{margin-top:8px}.quick-adjust> .rowbtn:last-of-type{grid-template-columns:1fr 1fr}</style></head><body>
 <header><h1>THE PORKY YORKIE · BUILD THE FIT</h1><small>Upload your real outfit. Position it. Add text. Export.</small></header>
 <main>
-<section class="panel"><canvas id="canvas" width="1248" height="1248"></canvas><p class="help">Drag your outfit directly on the preview to position it. Use Zoom to resize. The final PNG is full resolution.</p><p class="status" id="status"></p><button id="export">Export Finished PNG</button></section>
+<section class="panel"><canvas id="canvas" width="1248" height="1248"></canvas><div class="quick-adjust"><p class="title">Move photo or text · live preview</p><p class="help">Choose what to move below, then drag directly on the picture. Use the arrow buttons for tiny adjustments. Fine-tuning sliders are hidden under Advanced.</p><label for="activeLayer">Drag on preview</label><select id="activeLayer"><option value="photo">Outfit photo</option><option value="subtitle">Garment subtitle (upper right)</option><option value="descriptor">Workwear / band tee (left)</option><option value="option">Style option (upper right)</option><option value="items">Clothing list + red line</option></select><div class="rowbtn"><button id="nudgeUp" class="secondary" type="button">↑ Up 5</button><button id="nudgeDown" class="secondary" type="button">↓ Down 5</button><button id="nudgeLeft" class="secondary" type="button">← Left 5</button><button id="nudgeRight" class="secondary" type="button">→ Right 5</button></div><details><summary style="padding:12px 0;font-weight:700">Advanced: precise X / Y sliders</summary><div id="positions"></div></details>
+<div class="rowbtn"><button class="secondary" id="save">Save text layout</button><button class="danger" id="resetText">Reset text positions</button></div>
+<p class="help">Saved text positions and template are local to this device. Your measurement builder is completely separate.</p></div><p class="help">Drag your outfit directly on the preview to position it. Use Zoom to resize. The final PNG is full resolution.</p><p class="status" id="status"></p><button id="export">Export Finished PNG</button></section>
 <section class="panel"><p class="title">1 · Photos & layout</p>
 <label for="photo">Outfit photo (JPEG or PNG)</label><input type="file" id="photo" accept="image/*">
 <label for="template">Optional: your EXACT blank cream Build the Fit template</label><input type="file" id="template" accept="image/*"><button class="secondary" id="clearTemplate" type="button" style="margin-top:8px">Remove Uploaded Template</button>
@@ -21,17 +23,17 @@
 <label>Bottom-left script item list (one per line)</label><textarea id="items">Vintage Carhartt Trucker Jacket&#10;Carhartt Double Knee Pants&#10;Corrosion of Conformity Band Tee&#10;Leather Red Wing Moc Toe Boots&#10;Leather Belt</textarea>
 <div class="controls"><div><label>Heading size</label><input id="subtitleSize" type="range" min="22" max="65" value="34"></div><div><label>Style option size</label><input id="optionSize" type="range" min="25" max="58" value="42"></div><div><label>Script size</label><input id="listSize" type="range" min="19" max="43" value="29"></div><div><label>Image opacity</label><input id="opacity" type="range" min="10" max="100" value="100"></div></div>
 </section>
-<section class="panel"><p class="title">3 · Move each text section independently</p><p class="help">Choose what to move below, then drag directly on the picture. Use the arrow buttons for tiny adjustments. Fine-tuning sliders are hidden under Advanced.</p><label for="activeLayer">Drag on preview</label><select id="activeLayer"><option value="photo">Outfit photo</option><option value="subtitle">Garment subtitle (upper right)</option><option value="descriptor">Workwear / band tee (left)</option><option value="option">Style option (upper right)</option><option value="items">Clothing list + red line</option></select><div class="rowbtn"><button id="nudgeUp" class="secondary" type="button">↑ Up 5</button><button id="nudgeDown" class="secondary" type="button">↓ Down 5</button><button id="nudgeLeft" class="secondary" type="button">← Left 5</button><button id="nudgeRight" class="secondary" type="button">→ Right 5</button></div><details><summary style="padding:12px 0;font-weight:700">Advanced: precise X / Y sliders</summary><div id="positions"></div></details>
-<div class="rowbtn"><button class="secondary" id="save">Save text layout</button><button class="danger" id="resetText">Reset text positions</button></div>
-<p class="help">Saved text positions and template are local to this device. Your measurement builder is completely separate.</p></section>
+
 </main>
 <script>
 'use strict';
 const W=1248,H=1248,canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d');
 const $=id=>document.getElementById(id);
 const fields=['subtitle','descriptor','option','items'];
-const defaults={subtitle:{x:822,y:165},descriptor:{x:50,y:258},option:{x:823,y:91},items:{x:85,y:1010}};
+const defaults={subtitle:{x:822,y:165},descriptor:{x:50,y:238},option:{x:823,y:91},items:{x:85,y:1010}};
 let places;try{places=Object.assign(structuredClone(defaults),JSON.parse(localStorage.getItem('pyFitPositionsV2')||'{}'))}catch{places=JSON.parse(JSON.stringify(defaults))}
+// Reposition only the untouched default descriptor; preserve custom placements.
+if(places.descriptor && Math.abs(places.descriptor.y-258)<1)places.descriptor.y=238;
 let photo=null,template=null,photoX=0,photoY=0,zoom=1,showLines=false,officialLogo=null,logoTransparent=null,headingInk=null;
 let photoWidth=1120;let activeTemplateLoad=0;
 function loadImg(data,callback){const i=new Image;i.onload=()=>callback(i);i.onerror=()=>{$('status').textContent='Could not load image. Try a JPEG or PNG.'};i.src=data}
@@ -44,7 +46,7 @@ function fitText(txt,x,y,maxWidth,size,style='bold 28px Georgia',color='#302a1d'
 $('officialLogo').onchange=e=>readFile(e.target.files[0],(im,data)=>{officialLogo=im;logoTransparent=null;try{localStorage.setItem('pyFitOfficialLogo',data)}catch{}draw()});
 try{const savedLogo=localStorage.getItem('pyFitOfficialLogo');if(savedLogo)loadImg(savedLogo,im=>{officialLogo=im;logoTransparent=null;draw()});else loadImg('../logo-official-white.png',im=>{officialLogo=im;draw()})}catch{loadImg('../logo-official-white.png',im=>{officialLogo=im;draw()})}
 function backdrop(){ctx.fillStyle='#EDE4D7';ctx.fillRect(0,0,W,H);if(template){ctx.drawImage(template,0,0,W,H);ctx.fillStyle='#EDE4D7';ctx.fillRect(0,0,W,275);ctx.fillRect(790,0,458,218);ctx.fillRect(35,970,80,186);ctx.fillRect(965,1000,283,248)}else{
- ctx.fillStyle='#332c1b';ctx.font='900 106px Georgia,serif';ctx.fillText('BUILD',44,98);ctx.fillText('THE FIT',44,197);ctx.fillStyle='#b11f35';ctx.fillRect(49,235,387,3);
+ ctx.fillStyle='#332c1b';ctx.font='900 106px Georgia,serif';ctx.fillText('BUILD',44,98);ctx.fillText('THE FIT',44,197);ctx.fillStyle='#b11f35';ctx.fillRect(49,213,387,3);
  // Style title is floating, not an opaque box.
  // No substitute text logo. Use the exact official logo from the uploaded template only.
  }}
@@ -100,7 +102,7 @@ function restoreTemplateArtwork(){
   ctx.fillText('BUILD',44,98);ctx.fillText('THE FIT',44,197);
  }
  // Both red divider lines are vector-drawn AFTER the photograph.
- ctx.fillStyle='#b11f35';ctx.fillRect(50,234,387,3);ctx.fillRect(794,119,410,3);
+ ctx.fillStyle='#b11f35';ctx.fillRect(50,213,387,3);ctx.fillRect(794,119,410,3);
  // The Style Option title itself is editable and rendered in draw().
  // The official logo always stays atop the image, using transparent paper.
  if(officialLogo){
