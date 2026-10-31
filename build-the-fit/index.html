@@ -11,7 +11,7 @@
 <label for="photo">Outfit photo (JPEG or PNG)</label><input type="file" id="photo" accept="image/*">
 <label for="template">Optional: your EXACT blank cream Build the Fit template</label><input type="file" id="template" accept="image/*"><button class="secondary" id="clearTemplate" type="button" style="margin-top:8px">Remove Uploaded Template</button>
 <p class="help note">Your original cream template includes the official logo. The editor cleans up its preprinted style title so you can type your own. Remove Uploaded Template switches back to the basic cream version.</p>
-<div class="controls"><div><label>Photo zoom</label><input id="zoom" type="range" min="20" max="350" value="100"></div><div><label>Photo vertical position</label><input id="posY" type="range" min="-650" max="650" value="0"></div><div><label>Photo horizontal position</label><input id="posX" type="range" min="-650" max="650" value="0"></div><div><label>Photo layer width</label><input id="photoWidth" type="range" min="400" max="1600" value="1120"></div></div>
+<label for="officialLogo">Official logo (optional replacement)</label><input type="file" id="officialLogo" accept="image/*"><p class="help">The official logo is automatically loaded from The Porky Yorkie’s existing GitHub assets. You may replace it with your supplied official logo and the choice will be saved on this device.</p><div class="controls"><div><label>Photo zoom</label><input id="zoom" type="range" min="20" max="350" value="100"></div><div><label>Photo vertical position</label><input id="posY" type="range" min="-650" max="650" value="0"></div><div><label>Photo horizontal position</label><input id="posX" type="range" min="-650" max="650" value="0"></div><div><label>Photo layer width</label><input id="photoWidth" type="range" min="400" max="1600" value="1120"></div></div>
 <div class="rowbtn"><button class="secondary" id="resetPhoto">Reset photo position</button><button class="secondary" id="toggleLines">Show/Hide guides</button></div>
 </section>
 <section class="panel"><p class="title">2 · Editable words</p>
@@ -21,7 +21,7 @@
 <label>Bottom-left script item list (one per line)</label><textarea id="items">Vintage Carhartt Trucker Jacket&#10;Carhartt Double Knee Pants&#10;Corrosion of Conformity Band Tee&#10;Leather Red Wing Moc Toe Boots&#10;Leather Belt</textarea>
 <div class="controls"><div><label>Heading size</label><input id="subtitleSize" type="range" min="22" max="65" value="34"></div><div><label>Style option size</label><input id="optionSize" type="range" min="25" max="58" value="42"></div><div><label>Script size</label><input id="listSize" type="range" min="19" max="43" value="29"></div><div><label>Image opacity</label><input id="opacity" type="range" min="10" max="100" value="100"></div></div>
 </section>
-<section class="panel"><p class="title">3 · Move each text section independently</p><p class="help">Position values stay separate. For finer adjustment, change X or Y; each field moves without affecting the others.</p><div id="positions"></div>
+<section class="panel"><p class="title">3 · Move each text section independently</p><p class="help">Select a text section, then drag it directly on the preview. Use the nudge buttons for precision. Choose Photo to drag the outfit instead.</p><label for="activeLayer">Drag on preview</label><select id="activeLayer"><option value="photo">Outfit photo</option><option value="subtitle">Garment subtitle (upper right)</option><option value="descriptor">Workwear / band tee (left)</option><option value="option">Style option (upper right)</option><option value="items">Clothing list + red line</option></select><div class="rowbtn"><button id="nudgeUp" class="secondary" type="button">↑ Up 5</button><button id="nudgeDown" class="secondary" type="button">↓ Down 5</button><button id="nudgeLeft" class="secondary" type="button">← Left 5</button><button id="nudgeRight" class="secondary" type="button">→ Right 5</button></div><div id="positions"></div>
 <div class="rowbtn"><button class="secondary" id="save">Save text layout</button><button class="danger" id="resetText">Reset text positions</button></div>
 <p class="help">Saved text positions and template are local to this device. Your measurement builder is completely separate.</p></section>
 </main>
@@ -32,7 +32,7 @@ const $=id=>document.getElementById(id);
 const fields=['subtitle','descriptor','option','items'];
 const defaults={subtitle:{x:822,y:165},descriptor:{x:50,y:258},option:{x:823,y:91},items:{x:85,y:1010}};
 let places;try{places=Object.assign(structuredClone(defaults),JSON.parse(localStorage.getItem('pyFitPositionsV2')||'{}'))}catch{places=JSON.parse(JSON.stringify(defaults))}
-let photo=null,template=null,photoX=0,photoY=0,zoom=1,showLines=false;
+let photo=null,template=null,photoX=0,photoY=0,zoom=1,showLines=false,officialLogo=null;
 let photoWidth=1120;let activeTemplateLoad=0;
 function loadImg(data,callback){const i=new Image;i.onload=()=>callback(i);i.onerror=()=>{$('status').textContent='Could not load image. Try a JPEG or PNG.'};i.src=data}
 function readFile(file,callback){if(!file)return;const reader=new FileReader;reader.onload=()=>loadImg(reader.result,im=>callback(im,reader.result));reader.readAsDataURL(file)}
@@ -41,9 +41,11 @@ $('template').onchange=e=>{const ticket=++activeTemplateLoad;readFile(e.target.f
 $('clearTemplate').onclick=()=>{activeTemplateLoad++;template=null;$('template').value='';try{localStorage.removeItem('pyFitBlankTemplate')}catch{}$('status').textContent='Uploaded template removed.';draw()};
 try{const saved=localStorage.getItem('pyFitBlankTemplate');if(saved){const ticket=++activeTemplateLoad;loadImg(saved,im=>{if(ticket!==activeTemplateLoad)return;template=im;draw()})}}catch{}
 function fitText(txt,x,y,maxWidth,size,style='bold 28px Georgia',color='#302a1d',align='left'){ctx.fillStyle=color;ctx.textAlign=align;ctx.textBaseline='alphabetic';ctx.font=style.replace('28px',size+'px');ctx.fillText(txt,x,y,maxWidth)}
+$('officialLogo').onchange=e=>readFile(e.target.files[0],(im,data)=>{officialLogo=im;try{localStorage.setItem('pyFitOfficialLogo',data)}catch{}draw()});
+try{const savedLogo=localStorage.getItem('pyFitOfficialLogo');if(savedLogo)loadImg(savedLogo,im=>{officialLogo=im;draw()});else loadImg('../logo-official-white.png',im=>{officialLogo=im;draw()})}catch{loadImg('../logo-official-white.png',im=>{officialLogo=im;draw()})}
 function backdrop(){ctx.fillStyle='#EDE4D7';ctx.fillRect(0,0,W,H);if(template){ctx.drawImage(template,0,0,W,H)}else{
  ctx.fillStyle='#332c1b';ctx.font='900 106px Georgia,serif';ctx.fillText('BUILD',44,98);ctx.fillText('THE FIT',44,197);ctx.fillStyle='#b11f35';ctx.fillRect(49,235,387,3);
- ctx.fillStyle='#e7d5bf';ctx.fillRect(794,38,410,84);ctx.fillStyle='#b11f35';ctx.fillRect(794,118,410,3);ctx.fillRect(48,987,3,131);
+ ctx.fillStyle='#e7d5bf';ctx.fillRect(794,38,410,84);
  // No substitute text logo. Use the exact official logo from the uploaded template only.
  }}
 function drawPhoto(){if(!photo)return;
@@ -54,18 +56,29 @@ function drawPhoto(){if(!photo)return;
  // No fixed clip: zoom/drag can use the whole canvas instead of cutting off at y=270 or 980.
  ctx.drawImage(photo,cx-dw/2,cy-dh/2,dw,dh);ctx.restore();}
 function restoreTemplateArtwork(){
- if(!template)return;
- // Protect all top branding from being covered by dragged photographs.
- ctx.drawImage(template,0,0,W,205,0,0,W,205);
- // Remove the printed text from the option panel by using an unlettered portion
- // of the same template paper, then draw its red underline back.
- ctx.drawImage(template,810,145,395,65,797,40,405,78);
- ctx.fillStyle='#b11f35';ctx.fillRect(794,119,410,3);
- // Erase the original fixed bottom-left red line from the blank artwork.
- // Copy an adjacent narrow strip of the same paper surface.
- ctx.drawImage(template,76,977,31,165,38,977,32,165);
- // Protect the entire lower logo / footer area from dragged photo.
- ctx.drawImage(template,920,914,328,334,920,914,328,334);
+ // Always protect the heading and top text/rule regions from the dragged photo.
+ if(template){
+   ctx.drawImage(template,0,0,790,275,0,0,790,275);
+   ctx.drawImage(template,794,38,410,84,794,38,410,84);
+   // Replace preprinted Style Option lettering with paper sampled below its box.
+   ctx.drawImage(template,803,139,395,60,803,42,395,72);
+   // Remove stationary lower-left rule, retaining the cream texture.
+   ctx.drawImage(template,78,967,19,185,44,967,19,185);
+ }else{
+   ctx.fillStyle='#EDE4D7';ctx.fillRect(0,0,790,270);
+   ctx.fillStyle='#332c1b';ctx.textAlign='left';ctx.font='900 106px Georgia,serif';ctx.fillText('BUILD',44,98);ctx.fillText('THE FIT',44,197);
+   ctx.fillStyle='#e7d5bf';ctx.fillRect(794,38,410,84);
+ }
+ ctx.fillStyle='#b11f35';ctx.fillRect(50,234,387,3);ctx.fillRect(794,119,410,3);
+ // Restore the original official logo from a dedicated asset ON TOP of all photos.
+ // Cover the template's printed logo so there can never be two stacked badges.
+ if(template){ctx.drawImage(template,915,917,42,331,914,917,42,331);}
+ if(officialLogo){
+   ctx.fillStyle='#EDE4D7';ctx.fillRect(995,1024,210,209);
+   ctx.drawImage(officialLogo,1000,1027,204,204);
+ }else if(template){
+   ctx.drawImage(template,990,1015,242,225,990,1015,242,225);
+ }
 }
 function draw(){ctx.clearRect(0,0,W,H);backdrop();drawPhoto();restoreTemplateArtwork();
  const s=places.subtitle,d=places.descriptor,o=places.option,it=places.items;
@@ -76,7 +89,7 @@ function draw(){ctx.clearRect(0,0,W,H);backdrop();drawPhoto();restoreTemplateArt
  ctx.fillStyle='#b11f35';ctx.fillRect(Math.max(4,it.x-19),it.y-14,3,Math.min(255,Math.max(85,lines.length*(Number($('listSize').value)+7)-10)));
 
  lines.forEach((line,i)=>fitText(line,it.x,it.y+i*(Number($('listSize').value)+7),530,Number($('listSize').value),'italic 28px Georgia'));
- if(showLines){ctx.save();ctx.setLineDash([8,8]);ctx.strokeStyle='#b11f35';ctx.strokeRect(0,270,W,710);ctx.restore();}
+ if(showLines){ctx.save();ctx.setLineDash([8,8]);ctx.strokeStyle='#b11f35';ctx.strokeRect(0,0,W,H);ctx.restore();}
 }
 for(let id of ['zoom','posX','posY','photoWidth','subtitleSize','optionSize','listSize','opacity','subtitle','descriptor','option','items'])$(id).addEventListener('input',()=>{zoom=Number($('zoom').value)/100;photoX=Number($('posX').value);photoY=Number($('posY').value);photoWidth=Number($('photoWidth').value);draw()});
 $('resetPhoto').onclick=()=>{photoX=0;photoY=0;zoom=1;photoWidth=1120;$('zoom').value=100;$('posX').value=0;$('posY').value=0;$('photoWidth').value=1120;draw()};
@@ -84,7 +97,9 @@ $('toggleLines').onclick=()=>{showLines=!showLines;draw()};
 const pos=$('positions');for(const name of fields){const box=document.createElement('div');box.className='controls';box.innerHTML='<div><label>'+({subtitle:'Garment under style line',descriptor:'Left description',option:'Style option',items:'Script list + red line'}[name])+' · X</label><input type="range" min="0" max="1100" step="1" data-field="'+name+'" data-axis="x"></div><div><label>Y</label><input type="range" min="0" max="1248" step="1" data-field="'+name+'" data-axis="y"></div>';pos.appendChild(box);for(const a of box.querySelectorAll('input')){a.value=places[name][a.dataset.axis];a.addEventListener('input',()=>{places[name][a.dataset.axis]=+a.value;draw()})}}
 $('save').onclick=()=>{localStorage.setItem('pyFitPositionsV2',JSON.stringify(places));$('status').textContent='Text layout saved.'};
 $('resetText').onclick=()=>{places=JSON.parse(JSON.stringify(defaults));for(const a of pos.querySelectorAll('input'))a.value=places[a.dataset.field][a.dataset.axis];draw()};
-let lastPointer=null;canvas.addEventListener('pointerdown',e=>{lastPointer={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId)});canvas.addEventListener('pointermove',e=>{if(!lastPointer)return;const r=canvas.getBoundingClientRect();photoX+=(e.clientX-lastPointer.x)*W/r.width;photoY+=(e.clientY-lastPointer.y)*H/r.height;lastPointer={x:e.clientX,y:e.clientY};$('posX').value=Math.max(-650,Math.min(650,photoX));$('posY').value=Math.max(-650,Math.min(650,photoY));draw()});for(const ev of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(ev,()=>{lastPointer=null});
+function moveSelected(dx,dy){const active=$('activeLayer').value;if(active==='photo'){photoX+=dx;photoY+=dy;$('posX').value=photoX;$('posY').value=photoY}else{places[active].x=Math.max(0,Math.min(1100,places[active].x+dx));places[active].y=Math.max(0,Math.min(1248,places[active].y+dy));for(const input of pos.querySelectorAll('input'))if(input.dataset.field===active)input.value=places[active][input.dataset.axis]}draw()}
+for(const [id,dx,dy] of [['nudgeLeft',-5,0],['nudgeRight',5,0],['nudgeUp',0,-5],['nudgeDown',0,5]])$(id).onclick=()=>moveSelected(dx,dy);
+let lastPointer=null;canvas.addEventListener('pointerdown',e=>{lastPointer={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId)});canvas.addEventListener('pointermove',e=>{if(!lastPointer)return;const r=canvas.getBoundingClientRect();const dx=(e.clientX-lastPointer.x)*W/r.width,dy=(e.clientY-lastPointer.y)*H/r.height;lastPointer={x:e.clientX,y:e.clientY};moveSelected(dx,dy)});for(const ev of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(ev,()=>{lastPointer=null});
 $('export').onclick=()=>{const old=showLines;showLines=false;draw();const url=canvas.toDataURL('image/png');const link=document.createElement('a');link.href=url;link.download='porky-yorkie-build-the-fit.png';link.click();showLines=old;draw();$('status').textContent='PNG generated. On iPhone, if needed, open the image and choose Save to Photos.'};
 draw();
 </script></body></html>
