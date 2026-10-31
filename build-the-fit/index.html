@@ -21,7 +21,7 @@
 <label>Bottom-left script item list (one per line)</label><textarea id="items">Vintage Carhartt Trucker Jacket&#10;Carhartt Double Knee Pants&#10;Corrosion of Conformity Band Tee&#10;Leather Red Wing Moc Toe Boots&#10;Leather Belt</textarea>
 <div class="controls"><div><label>Heading size</label><input id="subtitleSize" type="range" min="22" max="65" value="34"></div><div><label>Style option size</label><input id="optionSize" type="range" min="25" max="58" value="42"></div><div><label>Script size</label><input id="listSize" type="range" min="19" max="43" value="29"></div><div><label>Image opacity</label><input id="opacity" type="range" min="10" max="100" value="100"></div></div>
 </section>
-<section class="panel"><p class="title">3 · Move each text section independently</p><p class="help">Select a text section, then drag it directly on the preview. Use the nudge buttons for precision. Choose Photo to drag the outfit instead.</p><label for="activeLayer">Drag on preview</label><select id="activeLayer"><option value="photo">Outfit photo</option><option value="subtitle">Garment subtitle (upper right)</option><option value="descriptor">Workwear / band tee (left)</option><option value="option">Style option (upper right)</option><option value="items">Clothing list + red line</option></select><div class="rowbtn"><button id="nudgeUp" class="secondary" type="button">↑ Up 5</button><button id="nudgeDown" class="secondary" type="button">↓ Down 5</button><button id="nudgeLeft" class="secondary" type="button">← Left 5</button><button id="nudgeRight" class="secondary" type="button">→ Right 5</button></div><div id="positions"></div>
+<section class="panel"><p class="title">3 · Move each text section independently</p><p class="help">Choose what to move below, then drag directly on the picture. Use the arrow buttons for tiny adjustments. Fine-tuning sliders are hidden under Advanced.</p><label for="activeLayer">Drag on preview</label><select id="activeLayer"><option value="photo">Outfit photo</option><option value="subtitle">Garment subtitle (upper right)</option><option value="descriptor">Workwear / band tee (left)</option><option value="option">Style option (upper right)</option><option value="items">Clothing list + red line</option></select><div class="rowbtn"><button id="nudgeUp" class="secondary" type="button">↑ Up 5</button><button id="nudgeDown" class="secondary" type="button">↓ Down 5</button><button id="nudgeLeft" class="secondary" type="button">← Left 5</button><button id="nudgeRight" class="secondary" type="button">→ Right 5</button></div><details><summary style="padding:12px 0;font-weight:700">Advanced: precise X / Y sliders</summary><div id="positions"></div></details>
 <div class="rowbtn"><button class="secondary" id="save">Save text layout</button><button class="danger" id="resetText">Reset text positions</button></div>
 <p class="help">Saved text positions and template are local to this device. Your measurement builder is completely separate.</p></section>
 </main>
@@ -32,20 +32,20 @@ const $=id=>document.getElementById(id);
 const fields=['subtitle','descriptor','option','items'];
 const defaults={subtitle:{x:822,y:165},descriptor:{x:50,y:258},option:{x:823,y:91},items:{x:85,y:1010}};
 let places;try{places=Object.assign(structuredClone(defaults),JSON.parse(localStorage.getItem('pyFitPositionsV2')||'{}'))}catch{places=JSON.parse(JSON.stringify(defaults))}
-let photo=null,template=null,photoX=0,photoY=0,zoom=1,showLines=false,officialLogo=null;
+let photo=null,template=null,photoX=0,photoY=0,zoom=1,showLines=false,officialLogo=null,logoTransparent=null,headingInk=null;
 let photoWidth=1120;let activeTemplateLoad=0;
 function loadImg(data,callback){const i=new Image;i.onload=()=>callback(i);i.onerror=()=>{$('status').textContent='Could not load image. Try a JPEG or PNG.'};i.src=data}
 function readFile(file,callback){if(!file)return;const reader=new FileReader;reader.onload=()=>loadImg(reader.result,im=>callback(im,reader.result));reader.readAsDataURL(file)}
 $('photo').onchange=e=>readFile(e.target.files[0],(im)=>{photo=im;photoX=0;photoY=0;zoom=1;$('zoom').value=100;$('posX').value=0;$('posY').value=0;draw()});
-$('template').onchange=e=>{const ticket=++activeTemplateLoad;readFile(e.target.files[0],(im,data)=>{if(ticket!==activeTemplateLoad)return;template=im;try{localStorage.setItem('pyFitBlankTemplate',data);$('status').textContent='Template saved on this device.'}catch{$('status').textContent='Template loaded for this session (browser storage full).'}draw()})};
-$('clearTemplate').onclick=()=>{activeTemplateLoad++;template=null;$('template').value='';try{localStorage.removeItem('pyFitBlankTemplate')}catch{}$('status').textContent='Uploaded template removed.';draw()};
-try{const saved=localStorage.getItem('pyFitBlankTemplate');if(saved){const ticket=++activeTemplateLoad;loadImg(saved,im=>{if(ticket!==activeTemplateLoad)return;template=im;draw()})}}catch{}
+$('template').onchange=e=>{const ticket=++activeTemplateLoad;readFile(e.target.files[0],(im,data)=>{if(ticket!==activeTemplateLoad)return;template=im;headingInk=null;try{localStorage.setItem('pyFitBlankTemplate',data);$('status').textContent='Template saved on this device.'}catch{$('status').textContent='Template loaded for this session (browser storage full).'}draw()})};
+$('clearTemplate').onclick=()=>{activeTemplateLoad++;template=null;headingInk=null;$('template').value='';try{localStorage.removeItem('pyFitBlankTemplate')}catch{}$('status').textContent='Uploaded template removed.';draw()};
+try{const saved=localStorage.getItem('pyFitBlankTemplate');if(saved){const ticket=++activeTemplateLoad;loadImg(saved,im=>{if(ticket!==activeTemplateLoad)return;template=im;headingInk=null;draw()})}}catch{}
 function fitText(txt,x,y,maxWidth,size,style='bold 28px Georgia',color='#302a1d',align='left'){ctx.fillStyle=color;ctx.textAlign=align;ctx.textBaseline='alphabetic';ctx.font=style.replace('28px',size+'px');ctx.fillText(txt,x,y,maxWidth)}
-$('officialLogo').onchange=e=>readFile(e.target.files[0],(im,data)=>{officialLogo=im;try{localStorage.setItem('pyFitOfficialLogo',data)}catch{}draw()});
-try{const savedLogo=localStorage.getItem('pyFitOfficialLogo');if(savedLogo)loadImg(savedLogo,im=>{officialLogo=im;draw()});else loadImg('../logo-official-white.png',im=>{officialLogo=im;draw()})}catch{loadImg('../logo-official-white.png',im=>{officialLogo=im;draw()})}
-function backdrop(){ctx.fillStyle='#EDE4D7';ctx.fillRect(0,0,W,H);if(template){ctx.drawImage(template,0,0,W,H)}else{
+$('officialLogo').onchange=e=>readFile(e.target.files[0],(im,data)=>{officialLogo=im;logoTransparent=null;try{localStorage.setItem('pyFitOfficialLogo',data)}catch{}draw()});
+try{const savedLogo=localStorage.getItem('pyFitOfficialLogo');if(savedLogo)loadImg(savedLogo,im=>{officialLogo=im;logoTransparent=null;draw()});else loadImg('../logo-official-white.png',im=>{officialLogo=im;draw()})}catch{loadImg('../logo-official-white.png',im=>{officialLogo=im;draw()})}
+function backdrop(){ctx.fillStyle='#EDE4D7';ctx.fillRect(0,0,W,H);if(template){ctx.drawImage(template,0,0,W,H);ctx.fillStyle='#EDE4D7';ctx.fillRect(0,0,W,275);ctx.fillRect(790,0,458,218);ctx.fillRect(35,970,80,186);ctx.fillRect(965,1000,283,248)}else{
  ctx.fillStyle='#332c1b';ctx.font='900 106px Georgia,serif';ctx.fillText('BUILD',44,98);ctx.fillText('THE FIT',44,197);ctx.fillStyle='#b11f35';ctx.fillRect(49,235,387,3);
- ctx.fillStyle='#e7d5bf';ctx.fillRect(794,38,410,84);
+ // Style title is floating, not an opaque box.
  // No substitute text logo. Use the exact official logo from the uploaded template only.
  }}
 function drawPhoto(){if(!photo)return;
@@ -55,29 +55,60 @@ function drawPhoto(){if(!photo)return;
  ctx.save();ctx.globalAlpha=Number($('opacity').value)/100;
  // No fixed clip: zoom/drag can use the whole canvas instead of cutting off at y=270 or 980.
  ctx.drawImage(photo,cx-dw/2,cy-dh/2,dw,dh);ctx.restore();}
-function restoreTemplateArtwork(){
- // Always protect the heading and top text/rule regions from the dragged photo.
- if(template){
-   ctx.drawImage(template,0,0,790,275,0,0,790,275);
-   ctx.drawImage(template,794,38,410,84,794,38,410,84);
-   // Replace preprinted Style Option lettering with paper sampled below its box.
-   ctx.drawImage(template,803,139,395,60,803,42,395,72);
-   // Remove stationary lower-left rule, retaining the cream texture.
-   ctx.drawImage(template,78,967,19,185,44,967,19,185);
- }else{
-   ctx.fillStyle='#EDE4D7';ctx.fillRect(0,0,790,270);
-   ctx.fillStyle='#332c1b';ctx.textAlign='left';ctx.font='900 106px Georgia,serif';ctx.fillText('BUILD',44,98);ctx.fillText('THE FIT',44,197);
-   ctx.fillStyle='#e7d5bf';ctx.fillRect(794,38,410,84);
+// Convert the original template header ink to a transparent artwork layer.
+// The photo stays fully visible underneath letters instead of a cream rectangle.
+function createHeadingInk(){
+ if(!template)return null;
+ const off=document.createElement('canvas');off.width=W;off.height=270;
+ const c=off.getContext('2d',{willReadFrequently:true});c.drawImage(template,0,0,W,H);
+ const im=c.getImageData(0,0,W,270),p=im.data;
+ for(let y=0;y<270;y++)for(let x=0;x<W;x++){
+  let q=(y*W+x)*4,r=p[q],g=p[q+1],b=p[q+2];
+  // Retain only dark printed text in the BUILD THE FIT header. Avoid the
+  // original template's baked-in red lines; those are drawn as live vectors.
+  let alpha=0;
+  if(x<780 && y<217){
+    const light=(r+g+b)/3;
+    alpha=Math.max(0,Math.min(255,Math.round((200-light)*5)));
+  }
+  p[q+3]=alpha;
  }
+ c.putImageData(im,0,0);return off;
+}
+function processedLogo(){
+ if(!officialLogo)return null;
+ const src=officialLogo,off=document.createElement('canvas');off.width=400;off.height=400;
+ const c=off.getContext('2d',{willReadFrequently:true});c.drawImage(src,0,0,400,400);
+ const im=c.getImageData(0,0,400,400),p=im.data;
+ for(let q=0;q<p.length;q+=4){
+  const r=p[q],g=p[q+1],b=p[q+2],lo=Math.min(r,g,b),hi=Math.max(r,g,b);
+  // Remove nearly white / pale cream paper only. Preserve the original
+  // dog's brown coloring, lettering, border and linework unchanged.
+  const brightness=(r+g+b)/3;
+  const paper=lo>208 && (hi-lo)<35;
+  if(paper){p[q+3]=Math.max(0,Math.min(255,Math.round((238-brightness)*17)))}
+ }
+ c.putImageData(im,0,0);return off;
+}
+function restoreTemplateArtwork(){
+ // A transparent title overlay rather than a flat, opaque cream header.
+ if(template){
+  if(!headingInk)headingInk=createHeadingInk();
+  if(headingInk)ctx.drawImage(headingInk,0,0);
+ }else{
+  ctx.fillStyle='#332c1b';ctx.textAlign='left';ctx.font='900 106px Georgia,serif';
+  ctx.fillText('BUILD',44,98);ctx.fillText('THE FIT',44,197);
+ }
+ // Both red divider lines are vector-drawn AFTER the photograph.
  ctx.fillStyle='#b11f35';ctx.fillRect(50,234,387,3);ctx.fillRect(794,119,410,3);
- // Restore the original official logo from a dedicated asset ON TOP of all photos.
- // Cover the template's printed logo so there can never be two stacked badges.
- if(template){ctx.drawImage(template,915,917,42,331,914,917,42,331);}
+ // The Style Option title itself is editable and rendered in draw().
+ // The official logo always stays atop the image, using transparent paper.
  if(officialLogo){
-   ctx.fillStyle='#EDE4D7';ctx.fillRect(995,1024,210,209);
-   ctx.drawImage(officialLogo,1000,1027,204,204);
+  if(!logoTransparent)logoTransparent=processedLogo();
+  if(logoTransparent)ctx.drawImage(logoTransparent,997,1015,217,217);
  }else if(template){
-   ctx.drawImage(template,990,1015,242,225,990,1015,242,225);
+  // Fallback to the exact logo embedded in the approved user template.
+  ctx.drawImage(template,1000,1030,206,202,1000,1030,206,202);
  }
 }
 function draw(){ctx.clearRect(0,0,W,H);backdrop();drawPhoto();restoreTemplateArtwork();
