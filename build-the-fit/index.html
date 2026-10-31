@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><meta name="theme-color" content="#eDE4D7"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Build the Fit">
+<title>Porky Yorkie | Build the Fit</title>
+<style>
+:root{font-family:system-ui,-apple-system,sans-serif;color:#182238;background:#f5f0e8}*{box-sizing:border-box}body{margin:0}header{padding:17px 17px 9px;background:#13233a;color:white}header h1{margin:0;font-size:21px;letter-spacing:.02em}header small{opacity:.85}main{max-width:760px;margin:auto;padding:12px 12px 45px}.panel{background:white;border:1px solid #ded7c9;border-radius:15px;padding:14px;margin:12px 0;box-shadow:0 2px 6px #34240f0a}.title{font-weight:800;font-size:16px;margin:0 0 12px}label{display:block;font-weight:650;font-size:13px;margin:12px 0 5px}input[type=text],textarea,input[type=file],select{width:100%;font:inherit;padding:11px;border:1px solid #b9b4ad;border-radius:9px;background:white}textarea{min-height:96px;resize:vertical}.controls{display:grid;grid-template-columns:1fr 1fr;gap:8px}.controls>div{min-width:0}.wide{grid-column:span 2}button,.download{width:100%;border:0;border-radius:10px;padding:14px;background:#0b2448;color:white;font-size:16px;font-weight:750;cursor:pointer}.secondary{background:#5a5a5a}.danger{background:#8c2223}input[type=range]{width:100%;accent-color:#91282b}#canvas{display:block;width:100%;height:auto;border:1px solid #d8cfc3;border-radius:5px;touch-action:none;background:#ede4d7}.help{font-size:13px;color:#68625d;line-height:1.4}.status{font-size:13px;color:#36553a;min-height:17px}.rowbtn{display:grid;grid-template-columns:1fr 1fr;gap:8px}.note{background:#f6f1e7;padding:9px;border-radius:9px}
+</style></head><body>
+<header><h1>THE PORKY YORKIE · BUILD THE FIT</h1><small>Upload your real outfit. Position it. Add text. Export.</small></header>
+<main>
+<section class="panel"><canvas id="canvas" width="1248" height="1248"></canvas><p class="help">Drag your outfit directly on the preview to position it. Use Zoom to resize. The final PNG is full resolution.</p><p class="status" id="status"></p><button id="export">Export Finished PNG</button></section>
+<section class="panel"><p class="title">1 · Photos & layout</p>
+<label for="photo">Outfit photo (JPEG or PNG)</label><input type="file" id="photo" accept="image/*">
+<label for="template">Optional: your EXACT blank cream Build the Fit template</label><input type="file" id="template" accept="image/*">
+<p class="help note">Your exact template keeps its printed BUILD THE FIT heading, red rules, paper texture and official logo. Upload it once; the editor remembers it on this device when storage permits. Without it, a simple cream layout is used.</p>
+<div class="controls"><div><label>Photo zoom</label><input id="zoom" type="range" min="30" max="260" value="100"></div><div><label>Photo vertical position</label><input id="posY" type="range" min="-400" max="400" value="0"></div><div><label>Photo horizontal position</label><input id="posX" type="range" min="-400" max="400" value="0"></div><div><label>Photo layer width</label><input id="photoWidth" type="range" min="400" max="1248" value="1120"></div></div>
+<div class="rowbtn"><button class="secondary" id="resetPhoto">Reset photo position</button><button class="secondary" id="toggleLines">Show/Hide guides</button></div>
+</section>
+<section class="panel"><p class="title">2 · Editable words</p>
+<label>Heading under BUILD THE FIT</label><input id="subtitle" type="text" value="VINTAGE CARHARTT JACKET">
+<label>Small description beneath red line</label><input id="descriptor" type="text" value="WORKWEAR · VINTAGE BAND TEE">
+<label>Upper-right style option (fully editable)</label><input id="option" type="text" value="STYLE OPTION 01">
+<label>Bottom-left script item list (one per line)</label><textarea id="items">Vintage Carhartt Trucker Jacket&#10;Carhartt Double Knee Pants&#10;Corrosion of Conformity Band Tee&#10;Leather Red Wing Moc Toe Boots&#10;Leather Belt</textarea>
+<div class="controls"><div><label>Heading size</label><input id="subtitleSize" type="range" min="22" max="65" value="34"></div><div><label>Style option size</label><input id="optionSize" type="range" min="25" max="58" value="42"></div><div><label>Script size</label><input id="listSize" type="range" min="19" max="43" value="29"></div><div><label>Image opacity</label><input id="opacity" type="range" min="10" max="100" value="100"></div></div>
+</section>
+<section class="panel"><p class="title">3 · Move each text section independently</p><p class="help">Position values stay separate. For finer adjustment, change X or Y; each field moves without affecting the others.</p><div id="positions"></div>
+<div class="rowbtn"><button class="secondary" id="save">Save text layout</button><button class="danger" id="resetText">Reset text positions</button></div>
+<p class="help">Saved text positions and template are local to this device. Your measurement builder is completely separate.</p></section>
+</main>
+<script>
+'use strict';
+const W=1248,H=1248,canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d');
+const $=id=>document.getElementById(id);
+const fields=['subtitle','descriptor','option','items'];
+const defaults={subtitle:{x:50,y:224},descriptor:{x:50,y:263},option:{x:820,y:94},items:{x:68,y:981}};
+let places;try{places=Object.assign(structuredClone(defaults),JSON.parse(localStorage.getItem('pyFitPositions')||'{}'))}catch{places=JSON.parse(JSON.stringify(defaults))}
+let photo=null,template=null,photoX=0,photoY=0,zoom=1,showLines=false;
+let photoWidth=1120;
+function loadImg(data,callback){const i=new Image;i.onload=()=>callback(i);i.onerror=()=>{$('status').textContent='Could not load image. Try a JPEG or PNG.'};i.src=data}
+function readFile(file,callback){if(!file)return;const reader=new FileReader;reader.onload=()=>loadImg(reader.result,im=>callback(im,reader.result));reader.readAsDataURL(file)}
+$('photo').onchange=e=>readFile(e.target.files[0],(im)=>{photo=im;photoX=0;photoY=0;zoom=1;$('zoom').value=100;$('posX').value=0;$('posY').value=0;draw()});
+$('template').onchange=e=>readFile(e.target.files[0],(im,data)=>{template=im;try{localStorage.setItem('pyFitBlankTemplate',data);$('status').textContent='Template saved on this device.'}catch{$('status').textContent='Template loaded for this session (browser storage full).'}draw()});
+try{const saved=localStorage.getItem('pyFitBlankTemplate');if(saved)loadImg(saved,im=>{template=im;draw()})}catch{}
+function fitText(txt,x,y,maxWidth,size,style='bold 28px Georgia',color='#302a1d',align='left'){ctx.fillStyle=color;ctx.textAlign=align;ctx.textBaseline='alphabetic';ctx.font=style.replace('28px',size+'px');ctx.fillText(txt,x,y,maxWidth)}
+function backdrop(){ctx.fillStyle='#EDE4D7';ctx.fillRect(0,0,W,H);if(template){ctx.drawImage(template,0,0,W,H)}else{
+ ctx.fillStyle='#332c1b';ctx.font='900 106px Georgia,serif';ctx.fillText('BUILD',44,98);ctx.fillText('THE FIT',44,197);ctx.fillStyle='#b11f35';ctx.fillRect(49,235,387,3);
+ ctx.fillStyle='#e7d5bf';ctx.fillRect(794,38,410,84);ctx.fillStyle='#b11f35';ctx.fillRect(794,118,410,3);ctx.fillRect(48,987,3,131);
+ ctx.fillStyle='#372d20';ctx.font='bold 29px Georgia';ctx.textAlign='center';ctx.fillText('THE PORKY YORKIE',1090,1169);ctx.textAlign='left';
+ }}
+function drawPhoto(){if(!photo)return;
+ const maxW=photoWidth;const maxH=805;const ratio=Math.min(maxW/photo.width,maxH/photo.height)*zoom;const dw=photo.width*ratio,dh=photo.height*ratio;
+ const cx=624+photoX,cy=640+photoY;ctx.save();ctx.beginPath();ctx.rect(0,270,W,710);ctx.clip();ctx.globalAlpha=Number($('opacity').value)/100;ctx.drawImage(photo,cx-dw/2,cy-dh/2,dw,dh);ctx.restore();}
+function draw(){ctx.clearRect(0,0,W,H);backdrop();drawPhoto();
+ const s=places.subtitle,d=places.descriptor,o=places.option,it=places.items;
+ fitText($('subtitle').value.toUpperCase(),s.x,s.y,650,Number($('subtitleSize').value),'bold 28px Georgia');
+ fitText($('descriptor').value.toUpperCase(),d.x,d.y,690,24,'bold 28px Georgia');
+ fitText($('option').value.toUpperCase(),o.x,o.y,380,Number($('optionSize').value),'bold 28px Georgia');
+ const lines=$('items').value.split('\n').slice(0,9);
+ lines.forEach((line,i)=>fitText(line,it.x,it.y+i*(Number($('listSize').value)+7),530,Number($('listSize').value),'italic 28px Georgia'));
+ if(showLines){ctx.save();ctx.setLineDash([8,8]);ctx.strokeStyle='#b11f35';ctx.strokeRect(0,270,W,710);ctx.restore();}
+}
+for(let id of ['zoom','posX','posY','photoWidth','subtitleSize','optionSize','listSize','opacity','subtitle','descriptor','option','items'])$(id).addEventListener('input',()=>{zoom=Number($('zoom').value)/100;photoX=Number($('posX').value);photoY=Number($('posY').value);photoWidth=Number($('photoWidth').value);draw()});
+$('resetPhoto').onclick=()=>{photoX=0;photoY=0;zoom=1;photoWidth=1120;$('zoom').value=100;$('posX').value=0;$('posY').value=0;$('photoWidth').value=1120;draw()};
+$('toggleLines').onclick=()=>{showLines=!showLines;draw()};
+const pos=$('positions');for(const name of fields){const box=document.createElement('div');box.className='controls';box.innerHTML='<div><label>'+({subtitle:'Heading',descriptor:'Description',option:'Style option',items:'Script list'}[name])+' · X</label><input type="range" min="0" max="1100" step="1" data-field="'+name+'" data-axis="x"></div><div><label>Y</label><input type="range" min="0" max="1248" step="1" data-field="'+name+'" data-axis="y"></div>';pos.appendChild(box);for(const a of box.querySelectorAll('input')){a.value=places[name][a.dataset.axis];a.addEventListener('input',()=>{places[name][a.dataset.axis]=+a.value;draw()})}}
+$('save').onclick=()=>{localStorage.setItem('pyFitPositions',JSON.stringify(places));$('status').textContent='Text layout saved.'};
+$('resetText').onclick=()=>{places=JSON.parse(JSON.stringify(defaults));for(const a of pos.querySelectorAll('input'))a.value=places[a.dataset.field][a.dataset.axis];draw()};
+let lastPointer=null;canvas.addEventListener('pointerdown',e=>{lastPointer={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId)});canvas.addEventListener('pointermove',e=>{if(!lastPointer)return;const r=canvas.getBoundingClientRect();photoX+=(e.clientX-lastPointer.x)*W/r.width;photoY+=(e.clientY-lastPointer.y)*H/r.height;lastPointer={x:e.clientX,y:e.clientY};$('posX').value=Math.max(-400,Math.min(400,photoX));$('posY').value=Math.max(-400,Math.min(400,photoY));draw()});for(const ev of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(ev,()=>{lastPointer=null});
+$('export').onclick=()=>{const old=showLines;showLines=false;draw();const url=canvas.toDataURL('image/png');const link=document.createElement('a');link.href=url;link.download='porky-yorkie-build-the-fit.png';link.click();showLines=old;draw();$('status').textContent='PNG generated. On iPhone, if needed, open the image and choose Save to Photos.'};
+draw();
+</script></body></html>
