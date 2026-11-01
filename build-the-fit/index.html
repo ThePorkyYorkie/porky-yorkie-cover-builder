@@ -12,8 +12,8 @@
 <p class="help">Saved text positions and template are local to this device. Your measurement builder is completely separate.</p></div><p class="help">Drag your outfit directly on the preview to position it. Use Zoom to resize. The final PNG is full resolution.</p><p class="status" id="status"></p><button id="export">Export Finished PNG</button></section>
 <section class="panel"><p class="title">1 · Photos & layout</p>
 <label for="photo">Outfit photo (JPEG or PNG)</label><input type="file" id="photo" accept="image/*">
-<label for="template">Optional: your EXACT blank cream Build the Fit template</label><input type="file" id="template" accept="image/*"><button class="secondary" id="clearTemplate" type="button" style="margin-top:8px">Remove Uploaded Template</button>
-<p class="help note">Your original cream template includes the official logo. The editor cleans up its preprinted style title so you can type your own. Remove Uploaded Template switches back to the basic cream version.</p>
+<label for="backgroundMode">Background</label><select id="backgroundMode"><option value="cream">Cream</option><option value="white">White</option></select><details><summary style="padding:12px 0;font-weight:650">Optional: original cream artwork upload</summary><input type="file" id="template" accept="image/*"><button class="secondary" id="clearTemplate" type="button" style="margin-top:8px">Remove Uploaded Template</button></details>
+<p class="help note">Choose Cream or White. Your text, positioning, and official logo stay unchanged. For a seamless white result, use an outfit photo exported with a white background; JPEG backgrounds cannot be made transparent by switching this setting.</p>
 <label for="officialLogo">Official logo (optional replacement)</label><input type="file" id="officialLogo" accept="image/*"><p class="help">The official logo is automatically loaded from The Porky Yorkie’s existing GitHub assets. You may replace it with your supplied official logo and the choice will be saved on this device.</p>
 </section>
 <section class="panel"><p class="title">2 · Editable words</p>
@@ -30,12 +30,16 @@
 const W=1248,H=1248,canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d');
 const $=id=>document.getElementById(id);
 const fields=['subtitle','descriptor','option','items'];
-const defaults={subtitle:{x:822,y:165},descriptor:{x:50,y:238},option:{x:823,y:91},items:{x:85,y:1010}};
+const defaults={subtitle:{x:822,y:165},descriptor:{x:50,y:238},option:{x:823,y:91},items:{x:62,y:1050}};
 let places;try{places=Object.assign(structuredClone(defaults),JSON.parse(localStorage.getItem('pyFitPositionsV2')||'{}'))}catch{places=JSON.parse(JSON.stringify(defaults))}
 // Reposition only the untouched default descriptor; preserve custom placements.
 if(places.descriptor && Math.abs(places.descriptor.y-258)<1)places.descriptor.y=238;
+// Upgrade the former untouched list default, without moving a manually positioned list.
+if(places.items && places.items.x===85 && places.items.y===1010)places.items={x:62,y:1050};
 let photo=null,template=null,photoX=0,photoY=0,zoom=1,showLines=false,officialLogo=null,logoTransparent=null,headingInk=null;
 let photoWidth=1120;let activeTemplateLoad=0;
+let backgroundMode='cream';try{backgroundMode=localStorage.getItem('pyFitBackgroundMode')==='white'?'white':'cream'}catch{}$('backgroundMode').value=backgroundMode;
+$('backgroundMode').addEventListener('change',()=>{backgroundMode=$('backgroundMode').value;try{localStorage.setItem('pyFitBackgroundMode',backgroundMode)}catch{}draw()});
 function loadImg(data,callback){const i=new Image;i.onload=()=>callback(i);i.onerror=()=>{$('status').textContent='Could not load image. Try a JPEG or PNG.'};i.src=data}
 function readFile(file,callback){if(!file)return;const reader=new FileReader;reader.onload=()=>loadImg(reader.result,im=>callback(im,reader.result));reader.readAsDataURL(file)}
 $('photo').onchange=e=>readFile(e.target.files[0],(im)=>{photo=im;photoX=0;photoY=0;zoom=1;$('zoom').value=100;$('posX').value=0;$('posY').value=0;draw()});
@@ -45,7 +49,7 @@ try{const saved=localStorage.getItem('pyFitBlankTemplate');if(saved){const ticke
 function fitText(txt,x,y,maxWidth,size,style='bold 28px Georgia',color='#302a1d',align='left'){ctx.fillStyle=color;ctx.textAlign=align;ctx.textBaseline='alphabetic';ctx.font=style.replace('28px',size+'px');ctx.fillText(txt,x,y,maxWidth)}
 $('officialLogo').onchange=e=>readFile(e.target.files[0],(im,data)=>{officialLogo=im;logoTransparent=null;try{localStorage.setItem('pyFitOfficialLogo',data)}catch{}draw()});
 try{const savedLogo=localStorage.getItem('pyFitOfficialLogo');if(savedLogo)loadImg(savedLogo,im=>{officialLogo=im;logoTransparent=null;draw()});else loadImg('../logo-official-white.png',im=>{officialLogo=im;draw()})}catch{loadImg('../logo-official-white.png',im=>{officialLogo=im;draw()})}
-function backdrop(){ctx.fillStyle='#EDE4D7';ctx.fillRect(0,0,W,H);if(template){ctx.drawImage(template,0,0,W,H);ctx.fillStyle='#EDE4D7';ctx.fillRect(0,0,W,275);ctx.fillRect(790,0,458,218);ctx.fillRect(35,970,80,186);ctx.fillRect(965,1000,283,248)}else{
+function backdrop(){const bg=backgroundMode==='white'?'#FFFFFF':'#EDE4D7';ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);if(template && backgroundMode==='cream'){ctx.drawImage(template,0,0,W,H);ctx.fillStyle=bg;ctx.fillRect(0,0,W,275);ctx.fillRect(790,0,458,218);ctx.fillRect(35,970,80,186);ctx.fillRect(965,1000,283,248)}else{
  ctx.fillStyle='#332c1b';ctx.font='900 106px Georgia,serif';ctx.fillText('BUILD',44,98);ctx.fillText('THE FIT',44,197);ctx.fillStyle='#b11f35';ctx.fillRect(49,213,387,3);
  // Style title is floating, not an opaque box.
  // No substitute text logo. Use the exact official logo from the uploaded template only.
@@ -94,7 +98,7 @@ function processedLogo(){
 }
 function restoreTemplateArtwork(){
  // A transparent title overlay rather than a flat, opaque cream header.
- if(template){
+ if(template && backgroundMode==='cream'){
   if(!headingInk)headingInk=createHeadingInk();
   if(headingInk)ctx.drawImage(headingInk,0,0);
  }else{
@@ -108,7 +112,7 @@ function restoreTemplateArtwork(){
  if(officialLogo){
   if(!logoTransparent)logoTransparent=processedLogo();
   if(logoTransparent)ctx.drawImage(logoTransparent,997,1015,217,217);
- }else if(template){
+ }else if(template && backgroundMode==='cream'){
   // Fallback to the exact logo embedded in the approved user template.
   ctx.drawImage(template,1000,1030,206,202,1000,1030,206,202);
  }
