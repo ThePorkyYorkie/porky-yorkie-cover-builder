@@ -9,7 +9,13 @@
 <section class="panel"><canvas id="canvas" width="1248" height="1248"></canvas><div class="quick-adjust"><p class="title">Move photo or text · live preview</p><p class="help">Resize and move the outfit right here while looking at the preview.</p><div class="controls"><div><label>Photo zoom</label><input id="zoom" type="range" min="20" max="350" value="100"></div><div><label>Photo vertical position</label><input id="posY" type="range" min="-650" max="650" value="0"></div><div><label>Photo horizontal position</label><input id="posX" type="range" min="-650" max="650" value="0"></div><div><label>Photo layer width</label><input id="photoWidth" type="range" min="400" max="1600" value="1120"></div></div>
 <div class="rowbtn"><button class="secondary" id="resetPhoto">Reset photo position</button><button class="secondary" id="toggleLines">Show/Hide guides</button></div><p class="help">Choose what to move below, then drag directly on the picture. Use the arrow buttons for tiny adjustments. Fine-tuning sliders are hidden under Advanced.</p><label for="activeLayer">Drag on preview</label><select id="activeLayer"><option value="photo">Outfit photo</option><option value="subtitle">Garment subtitle (upper right)</option><option value="descriptor">Workwear / band tee (left)</option><option value="option">Style option (upper right)</option><option value="items">Clothing list + red line</option></select><div class="rowbtn"><button id="nudgeUp" class="secondary" type="button">↑ Up 5</button><button id="nudgeDown" class="secondary" type="button">↓ Down 5</button><button id="nudgeLeft" class="secondary" type="button">← Left 5</button><button id="nudgeRight" class="secondary" type="button">→ Right 5</button></div><details><summary style="padding:12px 0;font-weight:700">Advanced: precise X / Y sliders</summary><div id="positions"></div></details>
 <div class="rowbtn"><button class="secondary" id="save">Save text layout</button><button class="danger" id="resetText">Reset text positions</button></div>
-<p class="help">Saved text positions and template are local to this device. Your measurement builder is completely separate.</p></div><p class="help">Drag your outfit directly on the preview to position it. Use Zoom to resize. The final PNG is full resolution.</p><p class="status" id="status"></p><button id="export">Export Finished PNG</button></section>
+<p class="help">Saved text positions and template are local to this device. Your measurement builder is completely separate.</p></div><p class="help">Drag your outfit directly on the preview to position it. Use Zoom to resize. The final PNG is full resolution.</p><p class="status" id="status"></p><button id="export">Export Finished PNG</button>
+<div id="savePanel" hidden style="margin-top:12px;border:1px solid #dfd5c6;border-radius:12px;padding:12px;background:#f8f3ea">
+<p class="title">Your finished image</p>
+<img id="finishedImage" alt="Finished Build the Fit graphic" style="width:100%;border-radius:8px;display:block">
+<p class="help">On iPad or iPhone, tap “Share Image” and choose <strong>Save Image</strong> to add it to Photos. Or touch and hold the image above and choose Save to Photos.</p>
+<button id="shareFinished" type="button">Share Image · Save to Photos</button>
+</div></section>
 <section class="panel"><p class="title">1 · Photos & layout</p>
 <label for="photo">Outfit photo (JPEG or PNG)</label><input type="file" id="photo" accept="image/*">
 <label for="backgroundMode">Background</label><select id="backgroundMode"><option value="cream">Cream</option><option value="white">White</option></select><details><summary style="padding:12px 0;font-weight:650">Optional: original cream artwork upload</summary><input type="file" id="template" accept="image/*"><button class="secondary" id="clearTemplate" type="button" style="margin-top:8px">Remove Uploaded Template</button></details>
@@ -137,6 +143,28 @@ $('resetText').onclick=()=>{places=JSON.parse(JSON.stringify(defaults));for(cons
 function moveSelected(dx,dy){const active=$('activeLayer').value;if(active==='photo'){photoX+=dx;photoY+=dy;$('posX').value=photoX;$('posY').value=photoY}else{places[active].x=Math.max(0,Math.min(1100,places[active].x+dx));places[active].y=Math.max(0,Math.min(1248,places[active].y+dy));for(const input of pos.querySelectorAll('input'))if(input.dataset.field===active)input.value=places[active][input.dataset.axis]}draw()}
 for(const [id,dx,dy] of [['nudgeLeft',-5,0],['nudgeRight',5,0],['nudgeUp',0,-5],['nudgeDown',0,5]])$(id).onclick=()=>moveSelected(dx,dy);
 let lastPointer=null;canvas.addEventListener('pointerdown',e=>{lastPointer={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId)});canvas.addEventListener('pointermove',e=>{if(!lastPointer)return;const r=canvas.getBoundingClientRect();const dx=(e.clientX-lastPointer.x)*W/r.width,dy=(e.clientY-lastPointer.y)*H/r.height;lastPointer={x:e.clientX,y:e.clientY};moveSelected(dx,dy)});for(const ev of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(ev,()=>{lastPointer=null});
-$('export').onclick=()=>{const old=showLines;showLines=false;draw();const url=canvas.toDataURL('image/png');const link=document.createElement('a');link.href=url;link.download='porky-yorkie-build-the-fit.png';link.click();showLines=old;draw();$('status').textContent='PNG generated. On iPhone, if needed, open the image and choose Save to Photos.'};
+let finishedBlob=null;
+$('export').onclick=()=>{
+ const old=showLines;showLines=false;draw();
+ const png=canvas.toDataURL('image/png');
+ $('finishedImage').src=png;
+ $('savePanel').hidden=false;
+ canvas.toBlob(blob=>{finishedBlob=blob},'image/png');
+ showLines=old;draw();
+ $('status').textContent='Finished PNG ready below. Choose Share Image → Save Image to put it in Photos.';
+ $('savePanel').scrollIntoView({behavior:'smooth',block:'nearest'});
+};
+$('shareFinished').onclick=async()=>{
+ if(!finishedBlob){
+  $('status').textContent='Image is still preparing. You can also touch and hold the finished image to save it.';
+  return;
+ }
+ const file=new File([finishedBlob],'porky-yorkie-build-the-fit.png',{type:'image/png'});
+ if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
+  try{await navigator.share({files:[file]})}catch(e){if(e.name!=='AbortError')$('status').textContent='Use touch and hold on the finished image, then Save to Photos.'}
+ }else{
+  $('status').textContent='Touch and hold the finished image above and select Save to Photos.';
+ }
+};
 draw();
 </script></body></html>
