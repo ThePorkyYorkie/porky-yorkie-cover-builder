@@ -128,10 +128,16 @@ function draw(){ctx.clearRect(0,0,W,H);backdrop();drawPhoto();restoreTemplateArt
  fitText($('subtitle').value.toUpperCase(),s.x,s.y,370,Math.min(29,Number($('subtitleSize').value)),'bold 28px Georgia');
  fitText($('descriptor').value.toUpperCase(),d.x,d.y,690,24,'bold 28px Georgia');
  fitText($('option').value.toUpperCase(),o.x,o.y,385,Number($('optionSize').value),'bold 28px Georgia');
- const lines=$('items').value.split('\n').slice(0,9);
- ctx.fillStyle='#b11f35';ctx.fillRect(Math.max(4,it.x-19),it.y-14,3,Math.min(255,Math.max(85,lines.length*(Number($('listSize').value)+7)-10)));
-
- lines.forEach((line,i)=>fitText(line,it.x,it.y+i*(Number($('listSize').value)+7),530,Number($('listSize').value),'italic 28px Georgia'));
+ // Keep the red rule aligned with the actual number of populated list lines.
+ const lines=$('items').value.split('\n').map(line=>line.trim()).filter(Boolean).slice(0,12);
+ const fontSize=Number($('listSize').value),lineStep=fontSize+7;
+ if(lines.length){
+  const ruleTop=it.y-fontSize-2;
+  const ruleHeight=fontSize+8+(lines.length-1)*lineStep;
+  ctx.fillStyle='#b11f35';
+  ctx.fillRect(Math.max(4,it.x-19),ruleTop,3,ruleHeight);
+ }
+ lines.forEach((line,i)=>fitText(line,it.x,it.y+i*lineStep,530,fontSize,'italic 28px Georgia'));
  if(showLines){ctx.save();ctx.setLineDash([8,8]);ctx.strokeStyle='#b11f35';ctx.strokeRect(0,0,W,H);ctx.restore();}
 }
 for(let id of ['zoom','posX','posY','photoWidth','subtitleSize','optionSize','listSize','opacity','subtitle','descriptor','option','items'])$(id).addEventListener('input',()=>{zoom=Number($('zoom').value)/100;photoX=Number($('posX').value);photoY=Number($('posY').value);photoWidth=Number($('photoWidth').value);draw()});
